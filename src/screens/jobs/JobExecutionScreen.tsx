@@ -381,6 +381,28 @@ export default function JobExecutionScreen() {
           {' '}{job.address?.formattedAddress}
         </Text>
 
+        {/* Communication Actions */}
+        {!isCompleted && (
+          <View style={styles.commActionContainer}>
+            <Button
+              mode="contained-tonal"
+              icon="chat"
+              onPress={() => navigation.navigate('Chat', { bookingId: job.id, customerName: job.user?.name || 'Customer' })}
+              style={styles.commBtn}
+            >
+              Chat
+            </Button>
+            <Button
+              mode="contained-tonal"
+              icon="phone"
+              onPress={() => navigation.navigate('VoiceCall', { bookingId: job.id, customerName: job.user?.name || 'Customer' })}
+              style={styles.commBtn}
+            >
+              Call
+            </Button>
+          </View>
+        )}
+
         <Divider style={styles.divider} />
 
         <View style={styles.actionContainer}>
@@ -517,6 +539,10 @@ const styles = StyleSheet.create({
   statusText: { color: COLORS.primary, fontSize: 12, fontWeight: 'bold' },
 
   address: { color: COLORS.charcoal, fontSize: 14, marginVertical: 8, lineHeight: 20 },
+  
+  commActionContainer: { flexDirection: 'row', gap: 10, marginTop: 5 },
+  commBtn: { flex: 1, borderRadius: 8 },
+
   divider: { marginVertical: 16 },
 
   actionContainer: { flex: 1, justifyContent: 'flex-start' },

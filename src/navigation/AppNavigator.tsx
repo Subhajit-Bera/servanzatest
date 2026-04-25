@@ -23,6 +23,10 @@ import ProfileCreationScreen from '../screens/auth/ProfileCreationScreen';
 import ServiceSelectionScreen from '../screens/auth/ServiceSelectionScreen';
 import BankDetailsScreen from '../screens/auth/BankDetailsScreen';
 
+// Chat & Call
+import ChatScreen from '../screens/ChatScreen';
+import VoiceCallScreen from '../screens/VoiceCallScreen';
+
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
@@ -57,6 +61,16 @@ function DashboardStack() {
         name="TrainingSelection"
         component={TrainingSelectionScreen}
         options={{ headerShown: true, title: 'Training', headerBackTitle: 'Back' }}
+      />
+      <Stack.Screen 
+        name="Chat" 
+        component={ChatScreen} 
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="VoiceCall" 
+        component={VoiceCallScreen}
+        options={{ headerShown: false, presentation: 'modal' }} 
       />
     </Stack.Navigator>
   );

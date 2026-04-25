@@ -17,6 +17,7 @@ import { SocketProvider } from './src/context/SocketContext';
 import { JobRequestProvider } from './src/context/JobRequestContext';
 import { ActiveJobProvider } from './src/context/ActiveJobContext';
 import { NotificationProvider } from './src/context/NotificationContext';
+import { ChatProvider } from './src/context/ChatContext';
 
 // Utils
 import { requestUserPermission, NotificationListener } from './src/utils/notification';
@@ -31,6 +32,7 @@ import { initializeAppCheck } from './src/utils/appCheck';
 
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { NetworkBanner } from './src/components/NetworkBanner';
+import IncomingCallOverlay from './src/components/IncomingCallOverlay';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -57,13 +59,15 @@ export default function App() {
             <SafeAreaProvider>
               {/* SocketProvider must be inside Redux Provider to access auth token */}
               <SocketProvider>
-                {/* NotificationProvider manages persistent notifications */}
-                <NotificationProvider>
+                <ChatProvider>
+                  {/* NotificationProvider manages persistent notifications */}
+                  <NotificationProvider>
                   {/* ActiveJobProvider manages persistent job timer */}
                   <ActiveJobProvider>
                     {/* JobRequestProvider handles global job request popups */}
                     <JobRequestProvider>
                       <NetworkBanner />
+                      <IncomingCallOverlay />
                       {/* NavigationContainer manages the navigation tree and history */}
                       <NavigationContainer ref={navigationRef}>
                         <MainNavigator />
@@ -72,6 +76,7 @@ export default function App() {
                     </JobRequestProvider>
                   </ActiveJobProvider>
                 </NotificationProvider>
+                </ChatProvider>
               </SocketProvider>
             </SafeAreaProvider>
           </PaperProvider>
