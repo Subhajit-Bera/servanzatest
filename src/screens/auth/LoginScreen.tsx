@@ -76,7 +76,9 @@ export default function LoginScreen() {
 
     } catch (err: any) {
       console.error(err);
-      if (err.message?.includes('quota')) {
+      if (err.code === 'auth/too-many-requests') {
+        setError('Too many requests. Please wait a while before trying again.');
+      } else if (err.message?.includes('quota')) {
         setError('SMS quota exceeded. Please try again later.');
       } else {
         setError('Failed to send verification code.');

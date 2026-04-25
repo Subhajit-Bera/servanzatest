@@ -78,8 +78,12 @@ export default function OtpVerificationScreen() {
     try {
       setTimer(30);
       await firebaseAuth.signInWithPhone(phone);
-    } catch (err) {
-      setError('Failed to resend OTP');
+    } catch (err: any) {
+      if (err.code === 'auth/too-many-requests') {
+        setError('Too many requests. Please wait a while before trying again.');
+      } else {
+        setError('Failed to resend OTP');
+      }
     }
   };
 

@@ -48,20 +48,20 @@ export default function NotificationScreen() {
         }
 
         try {
-            // Try socket first
-            if (socket?.connected) {
-                socket.emit('job:accept', { assignmentId });
-            } else {
-                // Fallback to API
-                await buddyApi.acceptJob(assignmentId);
-            }
+            // Use API for reliable transactional acceptance (catches 409 conflicts)
+            await buddyApi.acceptJob(assignmentId);
 
-            // Remove from notification list
+            // Remove from notification list only on success
             await removeNotification(notification.id);
 
             Alert.alert('Success', 'Job accepted! Check your Active Jobs.');
         } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.message || 'Failed to accept job');
+            if (error.response?.status === 409) {
+                Alert.alert('Too Late', error.response?.data?.message || 'This job was accepted by another buddy.');
+                await removeNotification(notification.id); // Remove it since it's gone
+            } else {
+                Alert.alert('Error', error.response?.data?.message || 'Failed to accept job');
+            }
         }
     };
 
