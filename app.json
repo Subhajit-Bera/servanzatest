@@ -64,10 +64,20 @@
       "expo-secure-store",
       "expo-dev-client",
       [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "Servanza Buddy needs camera access for video calls.",
+          "microphonePermission": "Servanza Buddy needs microphone access for voice calls with customers."
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "ios": {
             "useFrameworks": "static"
+          },
+          "android": {
+            "minSdkVersion": 24
           }
         }
       ],

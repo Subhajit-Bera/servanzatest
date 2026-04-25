@@ -50,6 +50,7 @@
     "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
+    "@config-plugins/react-native-webrtc": "^14.0.0",
     "@types/react": "~19.1.0",
     "typescript": "~5.9.2"
   },
