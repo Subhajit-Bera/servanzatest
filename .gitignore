@@ -40,5 +40,5 @@ yarn-error.*
 /ios
 /android
 firebase/servanza-app-test-739c6600acef.json
-google-services.json
 GoogleService-Info.plist
+google-services.json

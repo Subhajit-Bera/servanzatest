@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator,TouchableOpacity } from 'react-native';
 import { Button, Checkbox, List, Searchbar } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
@@ -114,9 +114,11 @@ export default function ServiceSelectionScreen() {
       />
 
       <View style={styles.actionRow}>
-        <Button mode="text" onPress={handleSelectAll} textColor={COLORS.primary}>
-          {selectedIds.length === services.length ? "Deselect All" : "Select All"}
-        </Button>
+        <TouchableOpacity onPress={handleSelectAll} style={{ paddingVertical: 8, paddingRight: 8 }}>
+          <Text style={{ color: COLORS.primary, fontWeight: '500', fontSize: 14 }}>
+            {selectedIds.length === services.length ? "Deselect All" : "Select All"}
+          </Text>
+        </TouchableOpacity>
         <Text style={styles.countText}>{selectedIds.length} Selected</Text>
       </View>
 

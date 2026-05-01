@@ -297,14 +297,14 @@ export default function ProfileScreen() {
 
         {/* Service Area & Skills */}
         <View style={[styles.section, SHADOWS.light]}>
-          <List.Section>
+          {/* <List.Section>
             <List.Item
               title="Service Area"
               left={props => <List.Icon {...props} icon="map-marker-radius-outline" color={COLORS.primary} />}
               onPress={() => navigation.navigate('ServiceSelection')}
               right={props => <List.Icon {...props} icon="chevron-right" />}
             />
-          </List.Section>
+          </List.Section> */}
         </View>
 
         <Button

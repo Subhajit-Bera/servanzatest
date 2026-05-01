@@ -67,9 +67,9 @@ export default function App() {
                     {/* JobRequestProvider handles global job request popups */}
                     <JobRequestProvider>
                       <NetworkBanner />
-                      <IncomingCallOverlay />
                       {/* NavigationContainer manages the navigation tree and history */}
                       <NavigationContainer ref={navigationRef}>
+                        <IncomingCallOverlay />
                         <MainNavigator />
                         <StatusBar style="auto" />
                       </NavigationContainer>
