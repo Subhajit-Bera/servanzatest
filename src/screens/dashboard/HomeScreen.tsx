@@ -12,16 +12,17 @@ import {
   Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import { useAppSelector } from '../../store/hooks';
 import { Button, Avatar, Badge, Surface } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import messaging from '@react-native-firebase/messaging';
+import { getMessaging, onMessage, onNotificationOpenedApp, getInitialNotification } from '@react-native-firebase/messaging';
 
 import { COLORS, SHADOWS } from '../../config/theme';
 import { fetchProfile, fetchEarningsSummary, toggleAvailability } from '../../store/slices/buddySlice';
-import { RootState } from '../../store';
+
 import { requestUserPermission } from '../../utils/notification';
 import { buddyApi } from '../../api/client';
 import { useSocket } from '../../context/SocketContext';
@@ -44,7 +45,7 @@ export default function HomeScreen() {
   const { socket } = useSocket();
 
   // --- Redux State ---
-  const { profile, earnings, isAvailable, activeJob, loading } = useSelector((state: RootState) => state.buddy);
+  const { profile, earnings, isAvailable, activeJob, loading } = useAppSelector((state) => state.buddy);
 
   // --- Local State ---
   const [showDateModal, setShowDateModal] = useState(false);
@@ -138,9 +139,9 @@ export default function HomeScreen() {
       }
     };
 
-    const unsubscribeFCM = messaging().onMessage(handleRemoteMessage);
-    messaging().onNotificationOpenedApp(handleRemoteMessage);
-    messaging().getInitialNotification().then(msg => {
+    const unsubscribeFCM = onMessage(getMessaging(), handleRemoteMessage);
+    onNotificationOpenedApp(getMessaging(), handleRemoteMessage);
+    getInitialNotification(getMessaging()).then(msg => {
       if (msg) handleRemoteMessage(msg);
     });
 

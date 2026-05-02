@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Modal, Alert } from 'react-native';
 import { Button, Surface, Badge } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import messaging from '@react-native-firebase/messaging';
+import { getMessaging, onMessage, onNotificationOpenedApp, getInitialNotification } from '@react-native-firebase/messaging';
 import { useSocket } from '../../context/SocketContext';
 import { COLORS } from '../../config/theme';
 
@@ -24,7 +24,7 @@ export const JobRequestManager = () => {
   // --- 1. Notification Listeners (FCM) ---
   useEffect(() => {
     // Foreground Handler
-    const unsubscribe = messaging().onMessage(async remoteMessage => {
+    const unsubscribe = onMessage(getMessaging(), async remoteMessage => {
       console.log('[JobRequestManager] FCM Message received:', remoteMessage.data?.type);
       // Workers service sends type: 'buddy-assignment'
       if (remoteMessage.data?.type === 'buddy-assignment') {
@@ -42,7 +42,7 @@ export const JobRequestManager = () => {
     });
 
     // Background/Quit Open Handler
-    messaging().onNotificationOpenedApp(remoteMessage => {
+    onNotificationOpenedApp(getMessaging(), remoteMessage => {
       console.log('[JobRequestManager] FCM Notification opened:', remoteMessage.data?.type);
       if (remoteMessage.data?.type === 'buddy-assignment') {
         const newReq: JobRequest = {
@@ -59,7 +59,7 @@ export const JobRequestManager = () => {
     });
 
     // Check Initial Notification
-    messaging().getInitialNotification().then(remoteMessage => {
+    getInitialNotification(getMessaging()).then(remoteMessage => {
       if (remoteMessage?.data?.type === 'buddy-assignment') {
         const newReq: JobRequest = {
           bookingId: remoteMessage.data.bookingId as string,

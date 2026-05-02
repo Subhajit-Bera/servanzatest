@@ -165,10 +165,10 @@ export const firebaseAuth = {
   confirmCode: async (verificationId: string, code: string): Promise<string | undefined> => {
     try {
       console.log('[FirebaseAuth] Confirming code...');
-      const { PhoneAuthProvider, signInWithCredential } = await import('@react-native-firebase/auth');
+      const { PhoneAuthProvider, signInWithCredential, getIdToken } = await import('@react-native-firebase/auth');
       const credential = PhoneAuthProvider.credential(verificationId, code);
       const userCredential = await signInWithCredential(getAuth(), credential);
-      const idToken = await userCredential.user.getIdToken();
+      const idToken = await getIdToken(userCredential.user);
       console.log('[FirebaseAuth] Code confirmed, ID Token retrieved');
       return idToken;
     } catch (error) {
