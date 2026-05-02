@@ -17,6 +17,7 @@ import dayjs from 'dayjs';
 import { useChat, ChatMessage } from '../context/ChatContext';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
+import { COLORS } from '../config/theme';
 
 type RouteParams = {
     params: {
@@ -101,7 +102,7 @@ const ChatScreen = () => {
                             <Ionicons 
                                 name={item.isRead ? "checkmark-done" : "checkmark"} 
                                 size={14} 
-                                color={item.isRead ? "#10B981" : "rgba(255,255,255,0.7)"} 
+                                color={item.isRead ? COLORS.primary : "rgba(255,255,255,0.7)"} 
                                 style={{ marginLeft: 4 }}
                             />
                         )}
@@ -116,7 +117,7 @@ const ChatScreen = () => {
             {/* Header */}
             <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#1F2937" />
+                    <Ionicons name="arrow-back" size={24} color={COLORS.charcoal} />
                 </TouchableOpacity>
                 <View style={styles.headerTitleContainer}>
                     <Text style={styles.headerTitle}>{customerName}</Text>
@@ -125,7 +126,7 @@ const ChatScreen = () => {
                     onPress={() => navigation.navigate('VoiceCall', { bookingId, customerName })} 
                     style={styles.callButton}
                 >
-                    <Ionicons name="call" size={22} color="#4F46E5" />
+                    <Ionicons name="call" size={22} color={COLORS.primary} />
                 </TouchableOpacity>
             </View>
 
@@ -186,7 +187,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15,
         paddingBottom: 15,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: COLORS.lightGray,
     },
     backButton: {
         padding: 5,
@@ -198,13 +199,13 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#1F2937',
+        color: COLORS.charcoal,
     },
     callButton: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+        backgroundColor: COLORS.primaryLight + '40',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -222,7 +223,7 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
         borderRadius: 12,
         fontSize: 12,
-        color: '#6B7280',
+        color: COLORS.darkGray,
         overflow: 'hidden',
     },
     messageRow: {
@@ -244,7 +245,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: '#4B5563',
+        backgroundColor: COLORS.mediumGray,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -260,14 +261,14 @@ const styles = StyleSheet.create({
         borderRadius: 20,
     },
     messageBubbleMe: {
-        backgroundColor: '#4F46E5', // Primary indigo
+        backgroundColor: COLORS.primary,
         borderBottomRightRadius: 4,
     },
     messageBubbleOther: {
         backgroundColor: 'white',
         borderBottomLeftRadius: 4,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: COLORS.lightGray,
     },
     messageText: {
         fontSize: 15,
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
         color: 'white',
     },
     messageTextOther: {
-        color: '#1F2937',
+        color: COLORS.charcoal,
     },
     messageFooter: {
         flexDirection: 'row',
@@ -292,7 +293,7 @@ const styles = StyleSheet.create({
         color: 'rgba(255,255,255,0.7)',
     },
     timeTextOther: {
-        color: '#9CA3AF',
+        color: COLORS.mediumGray,
     },
     typingContainer: {
         paddingHorizontal: 20,
@@ -300,7 +301,7 @@ const styles = StyleSheet.create({
     },
     typingText: {
         fontSize: 12,
-        color: '#9CA3AF',
+        color: COLORS.mediumGray,
         fontStyle: 'italic',
     },
     inputContainer: {
@@ -309,7 +310,7 @@ const styles = StyleSheet.create({
         paddingTop: 10,
         backgroundColor: 'white',
         borderTopWidth: 1,
-        borderTopColor: '#E5E7EB',
+        borderTopColor: COLORS.lightGray,
         alignItems: 'flex-end',
     },
     input: {
@@ -323,19 +324,19 @@ const styles = StyleSheet.create({
         paddingBottom: 10,
         marginRight: 10,
         fontSize: 15,
-        color: '#1F2937',
+        color: COLORS.charcoal,
     },
     sendButton: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#4F46E5',
+        backgroundColor: COLORS.primary,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 2,
     },
     sendButtonDisabled: {
-        backgroundColor: '#A5B4FC',
+        backgroundColor: COLORS.lightGreen,
     },
 });
 

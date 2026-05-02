@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { useSocket } from './SocketContext';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
+import { WEBRTC_CONFIG } from '../config/constants';
+import InCallManager from 'react-native-incall-manager';
 
 export interface ChatMessage {
     id: string;
@@ -80,7 +82,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const [activeChatBookingId, setActiveChatBookingId] = useState<string | null>(null);
     const [isTyping, setIsTyping] = useState(false);
     const [typingUser, setTypingUser] = useState<string | null>(null);
-    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // --- Call State ---
     const [callState, setCallState] = useState<CallState>('idle');
@@ -94,11 +96,9 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     // --- WebRTC Refs ---
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
     const localStreamRef = useRef<MediaStream | null>(null);
-    const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const iceServersRef = useRef<RTCIceServer[]>([
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-    ]);
+    const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const callIdRef = useRef<string | null>(null);
+    const iceServersRef = useRef<RTCIceServer[]>(WEBRTC_CONFIG.iceServers);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Chat Methods
@@ -157,6 +157,10 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             peerConnectionRef.current = null;
         }
 
+        // Stop InCallManager audio session and ringtone
+        InCallManager.stop();
+        InCallManager.stopRingtone();
+
         setCallDuration(0);
         setIsMuted(false);
         setIsSpeaker(false);
@@ -167,9 +171,9 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         const pc = new RTCPeerConnection({ iceServers: servers || iceServersRef.current });
 
         pc.onicecandidate = (event) => {
-            if (event.candidate && callId && socket.connected) {
+            if (event.candidate && callIdRef.current && socket.connected) {
                 socket.emit('call:ice-candidate', {
-                    callId,
+                    callId: callIdRef.current,
                     candidate: event.candidate.toJSON(),
                 });
             }
@@ -183,13 +187,17 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
 
         peerConnectionRef.current = pc;
         return pc;
-    }, [callId, socket]);
+    }, [socket]);
 
     const startDurationTimer = useCallback(() => {
         setCallDuration(0);
         durationIntervalRef.current = setInterval(() => {
             setCallDuration(prev => prev + 1);
         }, 1000);
+
+        // Start InCallManager: routes audio to earpiece, enables proximity sensor
+        InCallManager.start({ media: 'audio' });
+        InCallManager.setForceSpeakerphoneOn(false);
     }, []);
 
     const initiateCall = useCallback(async (bookingId: string) => {
@@ -238,6 +246,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             await pc.setLocalDescription(answer);
 
             setCallId(incomingCall.callId);
+            callIdRef.current = incomingCall.callId;
             setActiveCallBookingId(incomingCall.bookingId);
             setCallState('connected');
             setIncomingCall(null);
@@ -259,19 +268,21 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         if (incomingCall && socket.connected) {
             socket.emit('call:reject', { callId: incomingCall.callId });
         }
+        InCallManager.stopRingtone();
         setIncomingCall(null);
         setCallState('idle');
     }, [incomingCall, socket]);
 
     const endCall = useCallback(() => {
-        if (callId && socket.connected) {
-            socket.emit('call:end', { callId });
+        if (callIdRef.current && socket.connected) {
+            socket.emit('call:end', { callId: callIdRef.current });
         }
         cleanupCall();
         setCallState('ended');
         setCallId(null);
+        callIdRef.current = null;
         setTimeout(() => setCallState('idle'), 2000);
-    }, [callId, socket, cleanupCall]);
+    }, [socket, cleanupCall]);
 
     const toggleMute = useCallback(() => {
         if (localStreamRef.current) {
@@ -284,7 +295,11 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     const toggleSpeaker = useCallback(() => {
-        setIsSpeaker(prev => !prev);
+        setIsSpeaker(prev => {
+            const newValue = !prev;
+            InCallManager.setForceSpeakerphoneOn(newValue);
+            return newValue;
+        });
     }, []);
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -340,9 +355,10 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         };
 
         // --- Call Events ---
-        const handleCallInitiated = (data: { callId: string; iceServers: RTCIceServer[] }) => {
+        const handleCallInitiated = (data: { callId: string; iceServers?: RTCIceServer[] }) => {
             setCallId(data.callId);
-            iceServersRef.current = data.iceServers;
+            callIdRef.current = data.callId;
+            if (data.iceServers) iceServersRef.current = data.iceServers;
         };
 
         const handleIncomingCall = (data: IncomingCallData) => {
@@ -378,6 +394,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             cleanupCall();
             setCallState('ended');
             setCallId(null);
+            callIdRef.current = null;
             setIncomingCall(null);
             setTimeout(() => setCallState('idle'), 2000);
         };

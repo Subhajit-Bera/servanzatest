@@ -20,3 +20,38 @@ export const CONFIG = {
     JOBS_FETCH_INTERVAL: 2000,
     CACHE_TTL: 3000,
 };
+
+
+export const WEBRTC_CONFIG = {
+    iceServers: [
+        // Primary Fallback: Google's free STUN servers
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+
+        // Metered STUN
+        {
+            urls: 'stun:stun.relay.metered.ca:80',
+        },
+        // Metered TURN Servers (For Symmetric NAT traversal)
+        {
+            urls: 'turn:in.relay.metered.ca:80',
+            username: 'f27bc21350803d756c169b95',    
+            credential: 'VJyJWq1KLfONxuYg',
+        },
+        {
+            urls: 'turn:in.relay.metered.ca:80?transport=tcp',
+            username: 'f27bc21350803d756c169b95',
+            credential: 'VJyJWq1KLfONxuYg',
+        },
+        {
+            urls: 'turn:in.relay.metered.ca:443',
+            username: 'f27bc21350803d756c169b95',
+            credential: 'VJyJWq1KLfONxuYg',
+        },
+        {
+            urls: 'turns:in.relay.metered.ca:443?transport=tcp',
+            username: 'f27bc21350803d756c169b95',
+            credential: 'VJyJWq1KLfONxuYg',
+        },
+    ],
+};

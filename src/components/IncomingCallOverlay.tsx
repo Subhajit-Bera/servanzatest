@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useChat } from '../context/ChatContext';
+import InCallManager from 'react-native-incall-manager';
 
 const { width } = Dimensions.get('window');
 
@@ -21,12 +22,15 @@ const IncomingCallOverlay = () => {
 
     useEffect(() => {
         if (incomingCall && callState === 'ringing') {
+            // Play ringtone and vibrate
+            InCallManager.startRingtone('_DEFAULT_', [1000, 500], 'playback', 30);
             Animated.spring(translateY, {
                 toValue: 0,
                 useNativeDriver: true,
                 bounciness: 12,
             }).start();
         } else {
+            InCallManager.stopRingtone();
             Animated.timing(translateY, {
                 toValue: -200,
                 duration: 300,
@@ -38,6 +42,7 @@ const IncomingCallOverlay = () => {
     if (!incomingCall || callState !== 'ringing') return null;
 
     const handleAccept = () => {
+        InCallManager.stopRingtone();
         navigation.navigate('VoiceCall', {
             bookingId: incomingCall.bookingId,
             customerName: incomingCall.caller.name,
@@ -47,6 +52,7 @@ const IncomingCallOverlay = () => {
     };
 
     const handleReject = () => {
+        InCallManager.stopRingtone();
         rejectCall();
     };
 
