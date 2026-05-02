@@ -158,8 +158,8 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         }
 
         // Stop InCallManager audio session and ringtone
-        InCallManager.stop();
-        InCallManager.stopRingtone();
+        InCallManager?.stop();
+        InCallManager?.stopRingtone();
 
         setCallDuration(0);
         setIsMuted(false);
@@ -196,8 +196,8 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         }, 1000);
 
         // Start InCallManager: routes audio to earpiece, enables proximity sensor
-        InCallManager.start({ media: 'audio' });
-        InCallManager.setForceSpeakerphoneOn(false);
+        InCallManager?.start({ media: 'audio' });
+        InCallManager?.setForceSpeakerphoneOn(false);
     }, []);
 
     const initiateCall = useCallback(async (bookingId: string) => {
@@ -268,7 +268,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         if (incomingCall && socket.connected) {
             socket.emit('call:reject', { callId: incomingCall.callId });
         }
-        InCallManager.stopRingtone();
+        InCallManager?.stopRingtone();
         setIncomingCall(null);
         setCallState('idle');
     }, [incomingCall, socket]);
@@ -297,7 +297,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const toggleSpeaker = useCallback(() => {
         setIsSpeaker(prev => {
             const newValue = !prev;
-            InCallManager.setForceSpeakerphoneOn(newValue);
+            InCallManager?.setForceSpeakerphoneOn(newValue);
             return newValue;
         });
     }, []);
