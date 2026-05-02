@@ -7,8 +7,7 @@ import React, {
     useRef,
     ReactNode,
 } from 'react';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
+import { useAppSelector } from '../store/hooks';
 import { socket } from '../utils/socket';
 import { buddyApi } from '../api/client';
 import { navigate } from '../utils/navigationRef';
@@ -32,7 +31,7 @@ const JobRequestContext = createContext<JobRequestContextType>({
 export const useJobRequests = () => useContext(JobRequestContext);
 
 export const JobRequestProvider = ({ children }: { children: ReactNode }) => {
-    const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+    const { isAuthenticated } = useAppSelector((state) => state.auth);
 
     const [jobs, setJobs] = useState<JobAlertData[]>([]);
     const [takenJobIds, setTakenJobIds] = useState<Set<string>>(new Set());
@@ -41,7 +40,7 @@ export const JobRequestProvider = ({ children }: { children: ReactNode }) => {
     // Track job IDs to prevent duplicates
     const seenJobIds = useRef<Set<string>>(new Set());
     // Track auto-dismiss timers
-    const dismissTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
+    const dismissTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
     // Add a new job request (with deduplication)
     const addJobRequest = useCallback((job: JobAlertData) => {

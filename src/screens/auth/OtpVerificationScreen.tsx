@@ -14,12 +14,17 @@ export default function OtpVerificationScreen() {
   const navigation = useNavigation<any>();
   const dispatch = useDispatch<any>();
 
-  const { phone, confirmation } = route.params;
+  // verificationId is now a plain string (not a Firebase class instance),
+  // so it is safe for React Navigation serialization — fixes the
+  // "Non-serializable values were found in the navigation state" warning.
+  const { phone, verificationId: initialVerificationId } = route.params;
 
   const [otp, setOtp] = useState('');
   const [timer, setTimer] = useState(30);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Track verificationId in state so resend can update it
+  const [verificationId, setVerificationId] = useState(initialVerificationId);
 
   useEffect(() => {
     let interval: any;
@@ -40,8 +45,8 @@ export default function OtpVerificationScreen() {
       setError('');
       Keyboard.dismiss();
 
-      // 1. Confirm with Firebase
-      const idToken = await firebaseAuth.confirmCode(confirmation, otp);
+      // 1. Confirm with Firebase using verificationId + code (modular pattern)
+      const idToken = await firebaseAuth.confirmCode(verificationId, otp);
       if (!idToken) throw new Error("Failed to get ID token");
 
       // 2. Send ID Token to Backend
@@ -77,7 +82,9 @@ export default function OtpVerificationScreen() {
   const handleResend = async () => {
     try {
       setTimer(30);
-      await firebaseAuth.signInWithPhone(phone);
+      // signInWithPhone now returns a verificationId string — update state
+      const newVerificationId = await firebaseAuth.signInWithPhone(phone);
+      setVerificationId(newVerificationId);
     } catch (err: any) {
       if (err.code === 'auth/too-many-requests') {
         setError('Too many requests. Please wait a while before trying again.');

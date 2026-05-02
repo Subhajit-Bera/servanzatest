@@ -3,10 +3,11 @@ import { View, Text, StyleSheet, Image, ScrollView } from 'react-native';
 import { Button, Card } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../../config/theme';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import { useAppSelector } from '../../store/hooks';
 import { restoreSession } from '../../store/slices/authSlice';
 import { buddyApi } from '../../api/client';
-import { RootState } from '../../store';
+
 import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BuddyVerificationStatus } from '../../types';
@@ -14,7 +15,7 @@ import { BuddyVerificationStatus } from '../../types';
 export default function VerificationPendingScreen() {
   const dispatch = useDispatch<any>();
   const navigation = useNavigation<any>();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user } = useAppSelector((state) => state.auth);
   const [verificationStatus, setVerificationStatus] = useState<BuddyVerificationStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../store';
+import { useDispatch } from 'react-redux';
+import { useAppSelector } from '../store/hooks';
 import { restoreSession } from '../store/slices/authSlice';
 import AuthNavigator from './AuthNavigator';
 import AppNavigator from './AppNavigator';
@@ -11,7 +11,7 @@ import { COLORS } from '../config/theme';
 
 export default function MainNavigator() {
   const dispatch = useDispatch<any>();
-  const { isAuthenticated, loading, user } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, loading, user } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
     dispatch(restoreSession());

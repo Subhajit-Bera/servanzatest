@@ -38,7 +38,7 @@ export const useActiveJob = () => useContext(ActiveJobContext);
 export const ActiveJobProvider = ({ children }: { children: ReactNode }) => {
     const [activeJob, setActiveJob] = useState<ActiveJobData | null>(null);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Calculate remaining seconds
     const remainingSeconds = activeJob

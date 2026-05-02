@@ -15,8 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import dayjs from 'dayjs';
 import { useChat, ChatMessage } from '../context/ChatContext';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
+import { useAppSelector } from '../store/hooks';
 import { COLORS } from '../config/theme';
 
 type RouteParams = {
@@ -32,7 +31,7 @@ const ChatScreen = () => {
     const insets = useSafeAreaInsets();
     const { bookingId, customerName } = route.params;
 
-    const { user } = useSelector((state: RootState) => state.auth);
+    const { user } = useAppSelector((state) => state.auth);
     const currentUserId = user?.id || '';
 
     const {

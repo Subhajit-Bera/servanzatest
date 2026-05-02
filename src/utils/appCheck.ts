@@ -1,11 +1,26 @@
-import appCheck from '@react-native-firebase/app-check';
+import {
+  initializeAppCheck as firebaseInitializeAppCheck,
+} from '@react-native-firebase/app-check';
+import type { ReactNativeFirebaseAppCheckProvider as AppCheckProviderType } from '@react-native-firebase/app-check';
+
+// ReactNativeFirebaseAppCheckProvider is a runtime class but its re-export in
+// modular.d.ts loses the constructor signature for TypeScript. The package's
+// exports map only exposes the root index, so deep path imports are blocked.
+// Solution: access via require() with an explicit minimal type declaration.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { ReactNativeFirebaseAppCheckProvider } = require('@react-native-firebase/app-check') as {
+  ReactNativeFirebaseAppCheckProvider: new () => AppCheckProviderType;
+};
 
 const DEBUG_TOKEN = 'EDC3104C-B6F8-47EC-A5BB-F7C4A4979ED3';
 
-export const initializeAppCheck = async () => {
+/**
+ * Initialize Firebase App Check.
+ * Uses debug provider in dev and the native provider (Play Integrity / AppAttest) in prod.
+ */
+export const initializeAppCheck = async (): Promise<void> => {
     try {
-        // Create the React Native Firebase App Check provider
-        const rnfbProvider = appCheck().newReactNativeFirebaseAppCheckProvider();
+        const rnfbProvider = new ReactNativeFirebaseAppCheckProvider();
 
         rnfbProvider.configure({
             android: {
@@ -18,7 +33,7 @@ export const initializeAppCheck = async () => {
             },
         });
 
-        await appCheck().initializeAppCheck({
+        await firebaseInitializeAppCheck(undefined, {
             provider: rnfbProvider,
             isTokenAutoRefreshEnabled: true,
         });
@@ -33,42 +48,3 @@ export const initializeAppCheck = async () => {
         console.warn('[AppCheck] Failed to initialize:', error);
     }
 };
-
-
-
-// import appCheck from '@react-native-firebase/app-check';
-
-// // Double-check this matches Firebase Console > App Check > Manage debug tokens
-// const DEBUG_TOKEN = 'EDC3104C-B6F8-47EC-A5BB-F7C4A4979ED3';
-
-// export const initializeAppCheck = async () => {
-//     try {
-//         // 1. Get the provider instance
-//         const rnfbProvider = appCheck().newReactNativeFirebaseAppCheckProvider();
-
-//         // 2. FORCE 'debug' provider. Do not use __DEV__ check.
-//         // This ensures your Development Build ALWAYS uses the token, 
-//         // bypassing the Play Integrity check that fails on dev builds.
-//         rnfbProvider.configure({
-//             android: {
-//                 provider: 'debug', 
-//                 debugToken: DEBUG_TOKEN,
-//             },
-//             apple: {
-//                 provider: 'debug',
-//                 debugToken: DEBUG_TOKEN,
-//             },
-//         });
-
-//         // 3. Initialize
-//         await appCheck().initializeAppCheck({
-//             provider: rnfbProvider,
-//             isTokenAutoRefreshEnabled: true,
-//         });
-
-//         console.log('[AppCheck] ✅ Enforced Debug Provider with token:', DEBUG_TOKEN);
-        
-//     } catch (error) {
-//         console.error('[AppCheck] Failed to initialize:', error);
-//     }
-// };

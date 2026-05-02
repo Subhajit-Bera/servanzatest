@@ -66,12 +66,12 @@ export default function LoginScreen() {
         return;
       }
 
-      // 4. Send OTP
-      const confirmation = await firebaseAuth.signInWithPhone(formattedPhone);
+      // 4. Send OTP — returns verificationId (plain string, safe for nav params)
+      const verificationId = await firebaseAuth.signInWithPhone(formattedPhone);
 
       navigation.navigate('OtpVerification', {
         phone: formattedPhone,
-        confirmation
+        verificationId
       });
 
     } catch (err: any) {

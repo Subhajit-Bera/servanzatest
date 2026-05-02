@@ -2,18 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { Button, TextInput, Checkbox, Avatar } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useSelector } from 'react-redux';
+import { useAppSelector } from '../../store/hooks';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { buddyApi } from '../../api/client';
 import { COLORS, SHADOWS } from '../../config/theme';
-import { RootState } from '../../store';
+
 
 export default function ProfileCreationScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { user } = useSelector((state: RootState) => state.auth);
-  const { profile } = useSelector((state: RootState) => state.buddy);
+  const { user } = useAppSelector((state) => state.auth);
+  const { profile } = useAppSelector((state) => state.buddy);
 
   const [loading, setLoading] = useState(false);
 

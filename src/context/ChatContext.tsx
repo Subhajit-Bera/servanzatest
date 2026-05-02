@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 import { useSocket } from './SocketContext';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
+import { useAppSelector } from '../store/hooks';
 import { WEBRTC_CONFIG } from '../config/constants';
 import InCallManager from 'react-native-incall-manager';
 
@@ -74,7 +73,7 @@ export const useChat = () => {
 
 export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const { socket } = useSocket();
-    const { user } = useSelector((state: RootState) => state.auth);
+    const { user } = useAppSelector((state) => state.auth);
     const currentUserId = user?.id || '';
 
     // --- Chat State ---

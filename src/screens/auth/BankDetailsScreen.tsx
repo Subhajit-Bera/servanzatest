@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, Image } from 'react-native';
 import { Button, TextInput, HelperText } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import { useAppSelector } from '../../store/hooks';
 import * as ImagePicker from 'expo-image-picker';
-import { RootState } from '../../store';
+
 import { buddyApi } from '../../api/client';
 import { restoreSession } from '../../store/slices/authSlice';
 import { COLORS, SHADOWS } from '../../config/theme';
@@ -17,7 +18,7 @@ export default function BankDetailsScreen() {
   const route = useRoute<any>();
   const dispatch = useDispatch<any>();
 
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user } = useAppSelector((state) => state.auth);
   const isUpdateMode = route.params?.mode === 'update';
   const isSubmitMode = route.params?.mode === 'submit'; // Coming from VerificationPending
 

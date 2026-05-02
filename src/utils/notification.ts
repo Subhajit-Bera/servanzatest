@@ -1,4 +1,13 @@
-import messaging, { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
+import {
+  getMessaging,
+  requestPermission,
+  AuthorizationStatus,
+  getToken,
+  onMessage,
+  onNotificationOpenedApp,
+  getInitialNotification,
+} from '@react-native-firebase/messaging';
+import type { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
@@ -64,13 +73,13 @@ const handleNotificationNavigation = (remoteMessage: FirebaseMessagingTypes.Remo
   }
 };
 
-// 3. Permission & Token Logic
+// 3. Permission & Token Logic (modular API)
 export async function requestUserPermission() {
   console.log('[FCM] Requesting notification permission...');
-  const authStatus = await messaging().requestPermission();
+  const authStatus = await requestPermission(getMessaging());
   const enabled =
-    authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-    authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+    authStatus === AuthorizationStatus.AUTHORIZED ||
+    authStatus === AuthorizationStatus.PROVISIONAL;
 
   console.log('[FCM] Permission status:', authStatus, 'enabled:', enabled);
 
@@ -82,7 +91,7 @@ export async function requestUserPermission() {
 // Exported so it can be called after login
 export async function registerFCMToken() {
   try {
-    const token = await messaging().getToken();
+    const token = await getToken(getMessaging());
     console.log('[FCM] Got device token:', token?.substring(0, 20) + '...');
 
     if (token) {
@@ -104,14 +113,15 @@ export async function registerFCMToken() {
   }
 }
 
-// 4. Main Listener Function
+// 4. Main Listener Function (modular API)
 export function NotificationListener() {
+  const messaging = getMessaging();
 
   // A. Foreground Messages
   // NOTE: We intentionally do NOT show a popup for buddy-assignment here
   // because the socket event already triggers the popup via JobRequestContext.
   // This prevents duplicate popups when both socket and push arrive.
-  const unsubscribe = messaging().onMessage(async remoteMessage => {
+  const unsubscribe = onMessage(messaging, async remoteMessage => {
     console.log('[FCM] Foreground notification received:', remoteMessage.data?.type);
 
     // For buddy-assignment, socket handles the popup - don't do anything here
@@ -124,13 +134,13 @@ export function NotificationListener() {
   });
 
   // B. Background Handler (When App is running in background and user taps notification)
-  messaging().onNotificationOpenedApp(remoteMessage => {
+  onNotificationOpenedApp(messaging, remoteMessage => {
     console.log('App opened from background state by notification');
     handleNotificationNavigation(remoteMessage);
   });
 
   // C. Quit State Handler (When App is completely killed and user taps notification)
-  messaging().getInitialNotification().then(remoteMessage => {
+  getInitialNotification(messaging).then(remoteMessage => {
     if (remoteMessage) {
       console.log('App opened from quit state by notification');
       // We need a slight delay to ensure NavigationContainer is ready

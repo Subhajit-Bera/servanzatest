@@ -27,7 +27,7 @@ export default function JobExecutionScreen() {
   // Timer State
   const [timer, setTimer] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Location Tracking Ref
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);

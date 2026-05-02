@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import auth from '@react-native-firebase/auth';
+import { getAuth, signInWithPhoneNumber } from '@react-native-firebase/auth';
 import appCheck from '@react-native-firebase/app-check';
 import {
   deduplicateRequest,
@@ -137,38 +137,38 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Firebase Helper
+// Firebase Phone Auth Helper (modular API)
+// signInWithPhone now returns verificationId (plain string) instead of the full
+// confirmation object. This fixes the React Navigation non-serializable state
+// warning: the verificationId can be safely passed through nav params.
 export const firebaseAuth = {
-  signInWithPhone: async (phoneNumber: string) => {
+  signInWithPhone: async (phoneNumber: string): Promise<string> => {
     try {
       console.log('[FirebaseAuth] Attempting sign-in for:', phoneNumber);
-      // await appCheck().getToken(true)
-      // Use namespace API to send OTP
-      const confirmation = await auth().signInWithPhoneNumber(phoneNumber);
+      // Modular API: signInWithPhoneNumber(auth, phone)
+      const confirmation = await signInWithPhoneNumber(getAuth(), phoneNumber);
 
       console.log('[FirebaseAuth] OTP sent successfully');
-      return confirmation;
+      // confirmation.verificationId is typed string | null in v24 — it is always
+      // a populated string when signInWithPhoneNumber resolves successfully.
+      return confirmation.verificationId!;
     } catch (error: any) {
       console.error('[FirebaseAuth] Sign In Error:', error);
       console.error('[FirebaseAuth] Error Code:', error.code);
       console.error('[FirebaseAuth] Error Message:', error.message);
-
-      // if (error.code === 'auth/missing-client-identifier') {
-      //   console.error('[FirebaseAuth] CRITICAL: Google Play Integrity check failed.');
-      //   console.error('[FirebaseAuth] Possible causes:');
-      //   console.error('1. SHA-256 fingerprint missing in Firebase Console');
-      //   console.error('2. Outdated google-services.json');
-      //   console.error('3. App is not signed with the registered key');
-      // }
-
       throw error;
     }
   },
-  confirmCode: async (confirmation: any, code: string) => {
+
+  // confirmCode now takes (verificationId, code) instead of (confirmationObject, code).
+  // Uses PhoneAuthProvider.credential to build the credential then signInWithCredential.
+  confirmCode: async (verificationId: string, code: string): Promise<string | undefined> => {
     try {
       console.log('[FirebaseAuth] Confirming code...');
-      await confirmation.confirm(code);
-      const idToken = await auth().currentUser?.getIdToken();
+      const { PhoneAuthProvider, signInWithCredential } = await import('@react-native-firebase/auth');
+      const credential = PhoneAuthProvider.credential(verificationId, code);
+      const userCredential = await signInWithCredential(getAuth(), credential);
+      const idToken = await userCredential.user.getIdToken();
       console.log('[FirebaseAuth] Code confirmed, ID Token retrieved');
       return idToken;
     } catch (error) {

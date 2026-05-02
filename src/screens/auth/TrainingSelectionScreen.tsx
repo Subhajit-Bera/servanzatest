@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { Button } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import { useAppSelector } from '../../store/hooks';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { RootState } from '../../store';
+
 import { buddyApi } from '../../api/client';
 import { restoreSession } from '../../store/slices/authSlice';
 import { COLORS, SHADOWS } from '../../config/theme';
@@ -13,7 +14,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 export default function TrainingSelectionScreen() {
   const navigation = useNavigation<any>();
   const dispatch = useDispatch<any>();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user } = useAppSelector((state) => state.auth);
 
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);

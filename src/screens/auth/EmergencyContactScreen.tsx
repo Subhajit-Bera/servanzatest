@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Button, TextInput, HelperText } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../../store';
+import { useDispatch } from 'react-redux';
+import { useAppSelector } from '../../store/hooks';
+
 import { buddyApi } from '../../api/client';
 import { restoreSession } from '../../store/slices/authSlice';
 import { COLORS, SHADOWS } from '../../config/theme';
@@ -12,7 +13,7 @@ export default function EmergencyContactScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useDispatch<any>();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user } = useAppSelector((state) => state.auth);
   const isUpdateMode = route.params?.mode === 'update';
 
   const [loading, setLoading] = useState(false);
