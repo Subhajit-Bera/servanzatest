@@ -61,7 +61,7 @@ export default function JobInProgressScreen() {
                     customerName: jobData.booking.user.name,
                     customerPhone: jobData.booking.user.phone,
                     address: jobData.booking.address.formattedAddress,
-                    totalAmount: jobData.booking.totalAmount,
+                    totalAmount: jobData.booking.employeePayout,
                 });
             }
         } catch (error) {
@@ -122,7 +122,7 @@ export default function JobInProgressScreen() {
         customerName: job.booking?.user?.name,
         customerPhone: job.booking?.user?.phone,
         address: job.booking?.address?.formattedAddress,
-        totalAmount: job.booking?.totalAmount,
+        totalAmount: job.booking?.employeePayout,
         durationMins: job.booking?.service?.durationMins,
     } : activeJob ? {
         serviceName: activeJob.serviceName,
@@ -220,7 +220,7 @@ export default function JobInProgressScreen() {
                                 <MaterialCommunityIcons name="currency-inr" size={20} color={COLORS.primary} />
                             </View>
                             <View style={styles.detailContent}>
-                                <Text style={styles.detailLabel}>Price</Text>
+                                <Text style={styles.detailLabel}>Expected Payout</Text>
                                 <Text style={[styles.detailValue, styles.priceText]}>₹{displayData.totalAmount}</Text>
                             </View>
                         </View>

@@ -34,7 +34,7 @@ export default function JobCompletionScreen() {
 
     // Service info from jobData
     const serviceName = jobData?.booking?.service?.title || jobData?.serviceName || 'Service';
-    const totalAmount = jobData?.booking?.totalAmount || jobData?.totalAmount || 0;
+    const totalAmount = jobData?.booking?.employeePayout || jobData?.employeePayout || jobData?.booking?.totalAmount || jobData?.totalAmount || 0;
     const customerName = jobData?.booking?.user?.name || jobData?.customerName || 'Customer';
 
     const handlePaymentAccepted = async () => {

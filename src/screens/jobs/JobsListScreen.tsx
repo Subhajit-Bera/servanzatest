@@ -250,7 +250,7 @@ export default function JobsListScreen() {
               <MaterialCommunityIcons name="calendar-clock" size={14} color={COLORS.mediumGray} />
               <Text style={styles.infoText}>{formatDateTime(scheduledStart)}</Text>
             </View>
-            <Text style={styles.price}>₹{booking.totalAmount || 0}</Text>
+            <Text style={styles.price}>Payout: ₹{booking.employeePayout || 0}</Text>
           </View>
 
           <View style={[styles.row, { marginTop: 6 }]}>
