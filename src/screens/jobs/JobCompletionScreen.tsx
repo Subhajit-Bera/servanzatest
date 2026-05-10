@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { buddyApi } from '../../api/client';
 import { COLORS } from '../../config/theme';
 import { useActiveJob } from '../../context/ActiveJobContext';
+import { getDisplayTitle } from '../../utils/bookingHelpers';
 
 type CompletionStep = 'payment' | 'otp' | 'success';
 
@@ -33,7 +34,7 @@ export default function JobCompletionScreen() {
     const [otpSent, setOtpSent] = useState(false);
 
     // Service info from jobData
-    const serviceName = jobData?.booking?.service?.title || jobData?.serviceName || 'Service';
+    const serviceName = getDisplayTitle(jobData?.booking) || jobData?.serviceName || 'Service';
     const totalAmount = jobData?.booking?.employeePayout || jobData?.employeePayout || jobData?.booking?.totalAmount || jobData?.totalAmount || 0;
     const customerName = jobData?.booking?.user?.name || jobData?.customerName || 'Customer';
 

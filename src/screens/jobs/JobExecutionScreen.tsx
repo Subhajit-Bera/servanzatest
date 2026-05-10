@@ -12,6 +12,7 @@ import {
 import { COLORS, SHADOWS } from '../../config/theme';
 import { buddyApi } from '../../api/client';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { getDisplayTitle, getBuddyAddress } from '../../utils/bookingHelpers';
 
 export default function JobExecutionScreen() {
   const route = useRoute<any>();
@@ -295,7 +296,7 @@ export default function JobExecutionScreen() {
           <View style={styles.jobHeader}>
             <View>
               <Text style={styles.customerName}>{job.user?.name || 'Customer'}</Text>
-              <Text style={styles.serviceTitle}>{job.service?.title}</Text>
+              <Text style={styles.serviceTitle}>{getDisplayTitle(job)}</Text>
             </View>
             <View style={[styles.statusBadge, { backgroundColor: '#E8F8F5' }]}>
               <Text style={[styles.statusText, { color: COLORS.primary }]}>COMPLETED</Text>
@@ -304,7 +305,7 @@ export default function JobExecutionScreen() {
 
           <Text style={styles.address} numberOfLines={2}>
             <MaterialCommunityIcons name="map-marker" size={16} color={COLORS.primary} />
-            {' '}{job.address?.formattedAddress}
+            {' '}{getBuddyAddress(job.address)}
           </Text>
 
           <Divider style={styles.divider} />
@@ -369,7 +370,7 @@ export default function JobExecutionScreen() {
         <View style={styles.jobHeader}>
           <View>
             <Text style={styles.customerName}>{job.user?.name || 'Customer'}</Text>
-            <Text style={styles.serviceTitle}>{job.service?.title}</Text>
+            <Text style={styles.serviceTitle}>{getDisplayTitle(job)}</Text>
           </View>
           <View style={styles.statusBadge}>
             <Text style={styles.statusText}>{status.replace('_', ' ')}</Text>
@@ -378,7 +379,7 @@ export default function JobExecutionScreen() {
 
         <Text style={styles.address} numberOfLines={2}>
           <MaterialCommunityIcons name="map-marker" size={16} color={COLORS.primary} />
-          {' '}{job.address?.formattedAddress}
+          {' '}{getBuddyAddress(job.address)}
         </Text>
 
         {/* Communication Actions */}

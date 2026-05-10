@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { buddyApi } from '../../api/client';
 import { COLORS } from '../../config/theme';
 import { useActiveJob } from '../../context/ActiveJobContext';
+import { getDisplayTitle, getBuddyAddress } from '../../utils/bookingHelpers';
 
 export default function JobInProgressScreen() {
     const route = useRoute<any>();
@@ -57,10 +58,10 @@ export default function JobInProgressScreen() {
                     bookingId: jobData.booking.id,
                     startedAt: jobStartedAt,
                     durationMinutes: durationMinutes || jobData.booking.service.durationMins || 60,
-                    serviceName: jobData.booking.service.title,
+                    serviceName: getDisplayTitle(jobData.booking),
                     customerName: jobData.booking.user.name,
                     customerPhone: jobData.booking.user.phone,
-                    address: jobData.booking.address.formattedAddress,
+                    address: getBuddyAddress(jobData.booking.address),
                     totalAmount: jobData.booking.employeePayout,
                 });
             }
@@ -118,10 +119,10 @@ export default function JobInProgressScreen() {
 
     // Use active job data from context if job hasn't loaded yet
     const displayData = job ? {
-        serviceName: job.booking?.service?.title,
+        serviceName: getDisplayTitle(job.booking),
         customerName: job.booking?.user?.name,
         customerPhone: job.booking?.user?.phone,
-        address: job.booking?.address?.formattedAddress,
+        address: getBuddyAddress(job.booking?.address),
         totalAmount: job.booking?.employeePayout,
         durationMins: job.booking?.service?.durationMins,
     } : activeJob ? {

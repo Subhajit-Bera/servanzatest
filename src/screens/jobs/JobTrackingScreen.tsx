@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { buddyApi } from '../../api/client';
 import { COLORS } from '../../config/theme';
 import { useSocket } from '../../context/SocketContext';
+import { getDisplayTitle, getBuddyAddress } from '../../utils/bookingHelpers';
 import {
     startBackgroundLocationTracking,
     stopBackgroundLocationTracking
@@ -430,7 +431,7 @@ export default function JobTrackingScreen() {
                 <Marker
                     coordinate={destination}
                     title={job.booking.user.name}
-                    description={job.booking.address.formattedAddress}
+                    description={getBuddyAddress(job.booking.address)}
                     anchor={{ x: 0.5, y: 1 }}
                 >
                     <View style={styles.destinationMarkerContainer}>
@@ -491,7 +492,7 @@ export default function JobTrackingScreen() {
                 <View style={styles.userInfoRow}>
                     <View style={styles.userInfo}>
                         <Text style={styles.userName}>{job.booking.user.name}</Text>
-                        <Text style={styles.serviceName}>{job.booking.service.title}</Text>
+                        <Text style={styles.serviceName}>{getDisplayTitle(job.booking)}</Text>
                     </View>
                     <TouchableOpacity style={styles.callButton} onPress={handleCallUser}>
                         <MaterialCommunityIcons name="phone" size={24} color="#fff" />
@@ -503,7 +504,7 @@ export default function JobTrackingScreen() {
                     <MaterialCommunityIcons name="map-marker" size={18} color="#F44336" />
                     <View style={styles.addressContent}>
                         <Text style={styles.addressText} numberOfLines={2}>
-                            {job.booking.address.formattedAddress}
+                            {getBuddyAddress(job.booking.address)}
                         </Text>
                         {job.status === 'ON_WAY' && (
                             <TouchableOpacity

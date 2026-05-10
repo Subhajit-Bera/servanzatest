@@ -27,6 +27,7 @@ import { requestUserPermission } from '../../utils/notification';
 import { buddyApi } from '../../api/client';
 import { useSocket } from '../../context/SocketContext';
 import { useNotifications } from '../../context/NotificationContext';
+import { getDisplayTitle } from '../../utils/bookingHelpers';
 
 // Interface for the Job Offer
 interface JobRequest {
@@ -88,7 +89,7 @@ export default function HomeScreen() {
         const mappedRequests: JobRequest[] = pendingJobs.map((job: any) => ({
           bookingId: job.bookingId,
           assignmentId: job.id,
-          serviceTitle: job.booking?.service?.title || 'Service Request',
+          serviceTitle: getDisplayTitle(job.booking) || 'Service Request',
           address: job.booking?.address?.formattedAddress || 'Location hidden',
           distance: job.distanceKm || 0,
           price: job.booking?.totalAmount,
@@ -447,7 +448,7 @@ export default function HomeScreen() {
             <Text style={styles.sectionTitle}>Active Job</Text>
             <Surface style={[styles.jobCard, SHADOWS.green]} onTouchEnd={() => navigation.navigate('JobDetails', { jobId: activeJob.id })}>
               <View style={styles.jobHeader}>
-                <Text style={styles.serviceType}>{activeJob.service.title}</Text>
+                <Text style={styles.serviceType}>{getDisplayTitle(activeJob)}</Text>
                 <Badge style={{ backgroundColor: COLORS.accent }}>In Progress</Badge>
               </View>
               <Text style={styles.address}>{activeJob.address.formattedAddress}</Text>

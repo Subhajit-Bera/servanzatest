@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { buddyApi } from '../../api/client';
 import { COLORS, SHADOWS } from '../../config/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { getBookingItems, getDisplayTitle, getBuddyAddress } from '../../utils/bookingHelpers';
 
 type FilterType = 'ACTIVE' | 'PENDING' | 'HISTORY';
 
@@ -215,10 +216,13 @@ export default function JobsListScreen() {
   const displayJobs = jobs.filter(item => {
     if (!searchQuery) return true;
     const booking = item.booking || item;
-    const title = booking.service?.title || '';
-    const addr = booking.address?.formattedAddress || '';
+    const title = getDisplayTitle(booking);
+    const addr = booking.address?.streetAddress || '';
     const q = searchQuery.toLowerCase();
-    return title.toLowerCase().includes(q) || addr.toLowerCase().includes(q);
+    // Also search through individual metadata items
+    const items = getBookingItems(booking);
+    const itemMatch = items.some(i => i.title?.toLowerCase().includes(q));
+    return title.toLowerCase().includes(q) || addr.toLowerCase().includes(q) || itemMatch;
   });
 
   const renderJobItem = ({ item }: { item: any }) => {
@@ -239,7 +243,7 @@ export default function JobsListScreen() {
       >
         <Card.Content>
           <View style={styles.row}>
-            <Text style={styles.serviceTitle}>{booking.service?.title || 'Service'}</Text>
+            <Text style={styles.serviceTitle}>{getDisplayTitle(booking)}</Text>
             <Badge style={{ backgroundColor: getStatusColor(status) }}>
               {status === 'ON_WAY' ? 'On Way' : status === 'IN_PROGRESS' ? 'In Progress' : status}
             </Badge>
@@ -256,7 +260,7 @@ export default function JobsListScreen() {
           <View style={[styles.row, { marginTop: 6 }]}>
             <MaterialCommunityIcons name="map-marker-outline" size={14} color={COLORS.mediumGray} />
             <Text style={styles.address} numberOfLines={1}>
-              {getShortAddress(booking.address?.formattedAddress)}
+              {getBuddyAddress(booking.address)}
             </Text>
           </View>
 
