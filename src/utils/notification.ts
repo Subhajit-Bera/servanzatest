@@ -153,32 +153,95 @@ export function NotificationListener() {
   return unsubscribe;
 }
 
+// Helper: persist a notification to AsyncStorage so NotificationContext picks it up
+const NOTIFICATIONS_STORAGE_KEY = 'stored_notifications';
+const UNREAD_COUNT_KEY = 'unread_notifications';
+
+async function persistNotificationToStorage(
+  type: string,
+  title: string,
+  message: string,
+  data: any,
+) {
+  try {
+    const stored = await AsyncStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+    const current = stored ? JSON.parse(stored) : [];
+
+    const newNotification = {
+      id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type,
+      title,
+      message,
+      data,
+      timestamp: Date.now(),
+      read: false,
+    };
+
+    const updated = [newNotification, ...current];
+    await AsyncStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(updated));
+
+    // Increment unread count
+    const countStr = await AsyncStorage.getItem(UNREAD_COUNT_KEY);
+    const newCount = (parseInt(countStr || '0', 10) + 1).toString();
+    await AsyncStorage.setItem(UNREAD_COUNT_KEY, newCount);
+
+    console.log('[BGHandler] Persisted notification:', type, 'Total:', updated.length);
+  } catch (e) {
+    console.error('[BGHandler] Error persisting notification:', e);
+  }
+}
+
 // 5. Background Message Handler (Headless Task)
 export const backgroundMessageHandler = async (remoteMessage: FirebaseMessagingTypes.RemoteMessage) => {
   console.log('Message handled in the background/quit state!', remoteMessage);
 
   try {
-    // Increment a local "unread" counter
-    const currentCount = await AsyncStorage.getItem('unread_notifications');
-    const newCount = (parseInt(currentCount || '0') + 1).toString();
-    await AsyncStorage.setItem('unread_notifications', newCount);
+    const data = remoteMessage.data || {};
+    const type = data.type as string;
 
-    // Store latest job ID for when app opens
-    if (remoteMessage.data?.type === 'buddy-assignment' && remoteMessage.data.bookingId) {
-      const bookingId = String(remoteMessage.data.bookingId);
-      await AsyncStorage.setItem('latest_job_id', bookingId);
+    if (type === 'buddy-assignment' && data.bookingId) {
+      const jobData = {
+        assignmentId: data.assignmentId,
+        bookingId: data.bookingId,
+        serviceTitle: data.serviceTitle,
+        address: data.address,
+        distance: data.distance,
+        price: data.price,
+        isImmediate: data.isImmediate,
+        scheduledStart: data.scheduledStart,
+      };
 
-      // Store the full job data for popup when app opens
-      await AsyncStorage.setItem('pending_job_request', JSON.stringify({
-        assignmentId: remoteMessage.data.assignmentId,
-        bookingId: remoteMessage.data.bookingId,
-        serviceTitle: remoteMessage.data.serviceTitle,
-        address: remoteMessage.data.address,
-        distance: remoteMessage.data.distance,
-        price: remoteMessage.data.price,
-        isImmediate: remoteMessage.data.isImmediate,
-        scheduledStart: remoteMessage.data.scheduledStart, // Booking scheduled time
-      }));
+      // Persist to stored_notifications for NotificationScreen
+      await persistNotificationToStorage(
+        'job-assignment',
+        'New Job Available',
+        `${data.serviceTitle} at ${data.address}`,
+        jobData,
+      );
+
+      // Also keep pending_job_request for popup on app open
+      await AsyncStorage.setItem('pending_job_request', JSON.stringify(jobData));
+      await AsyncStorage.setItem('latest_job_id', String(data.bookingId));
+
+    } else if (type === 'booking-cancelled') {
+      await persistNotificationToStorage(
+        'booking-cancelled',
+        'Booking Cancelled',
+        String(data.message || '') || `${data.serviceTitle} has been cancelled by the customer.`,
+        {
+          bookingId: data.bookingId,
+          serviceTitle: data.serviceTitle || 'Booking',
+          message: data.message || 'A booking has been cancelled by the customer.',
+        },
+      );
+    } else {
+      // Generic notification — still persist so badge count matches content
+      await persistNotificationToStorage(
+        'general',
+        String(data.title || 'Notification'),
+        String(data.body || data.message || ''),
+        data,
+      );
     }
   } catch (e) {
     console.error('Error in background handler', e);

@@ -29,20 +29,29 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 const NOTIFICATIONS_STORAGE_KEY = 'stored_notifications';
 const UNREAD_COUNT_KEY = 'unread_notifications';
+const MAX_NOTIFICATION_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
     const [notifications, setNotifications] = useState<StoredNotification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
 
-    // Load notifications from storage on mount
+    // Load notifications from storage on mount (with 7-day pruning)
     const loadNotifications = useCallback(async () => {
         try {
             const stored = await AsyncStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
             if (stored) {
                 const parsed = JSON.parse(stored) as StoredNotification[];
+                // Prune notifications older than 7 days
+                const cutoff = Date.now() - MAX_NOTIFICATION_AGE_MS;
+                const pruned = parsed.filter(n => n.timestamp >= cutoff);
                 // Sort by timestamp descending (newest first)
-                parsed.sort((a, b) => b.timestamp - a.timestamp);
-                setNotifications(parsed);
+                pruned.sort((a, b) => b.timestamp - a.timestamp);
+                setNotifications(pruned);
+                // Save pruned list back if we removed anything
+                if (pruned.length !== parsed.length) {
+                    await AsyncStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(pruned));
+                    console.log(`[NotificationContext] Pruned ${parsed.length - pruned.length} old notifications`);
+                }
             }
 
             const countStr = await AsyncStorage.getItem(UNREAD_COUNT_KEY);
@@ -120,11 +129,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     };
 
     // Mark all as read (clears badge but keeps notifications)
+    // IMPORTANT: Reads from AsyncStorage directly to avoid race condition
+    // where React state may still be empty when this runs on screen focus.
     const markAllAsRead = async () => {
         try {
-            const updated = notifications.map(n => ({ ...n, read: true }));
-            setNotifications(updated);
+            const stored = await AsyncStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+            const current = stored ? JSON.parse(stored) as StoredNotification[] : [];
+            const updated = current.map(n => ({ ...n, read: true }));
+
             await AsyncStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(updated));
+            setNotifications(updated);
 
             setUnreadCount(0);
             await AsyncStorage.setItem(UNREAD_COUNT_KEY, '0');

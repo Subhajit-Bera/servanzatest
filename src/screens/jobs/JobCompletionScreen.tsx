@@ -35,7 +35,10 @@ export default function JobCompletionScreen() {
 
     // Service info from jobData
     const serviceName = getDisplayTitle(jobData?.booking) || jobData?.serviceName || 'Service';
-    const totalAmount = jobData?.booking?.employeePayout || jobData?.employeePayout || jobData?.booking?.totalAmount || jobData?.totalAmount || 0;
+    // Amount to collect from customer = actual booking total
+    const amountToCollect = jobData?.booking?.totalAmount || jobData?.totalAmount || 0;
+    // Buddy earnings = employee payout (their cut)
+    const buddyEarnings = jobData?.booking?.employeePayout || jobData?.employeePayout || amountToCollect;
     const customerName = jobData?.booking?.user?.name || jobData?.customerName || 'Customer';
 
     const handlePaymentAccepted = async () => {
@@ -99,7 +102,7 @@ export default function JobCompletionScreen() {
             routes: [
                 {
                     name: 'Jobs',
-                    params: { initialFilter: 'ACTIVE', refreshKey: Date.now() }
+                    params: { initialFilter: 'TODAY', refreshKey: Date.now() }
                 }
             ],
         });
@@ -119,7 +122,7 @@ export default function JobCompletionScreen() {
 
             <View style={styles.amountCard}>
                 <Text style={styles.amountLabel}>Amount to Collect</Text>
-                <Text style={styles.amountValue}>₹{totalAmount}</Text>
+                <Text style={styles.amountValue}>₹{amountToCollect}</Text>
                 <Text style={styles.amountService}>{serviceName}</Text>
             </View>
 
@@ -212,7 +215,7 @@ export default function JobCompletionScreen() {
 
             <View style={styles.earningsCard}>
                 <Text style={styles.earningsLabel}>You Earned</Text>
-                <Text style={styles.earningsValue}>₹{totalAmount}</Text>
+                <Text style={styles.earningsValue}>₹{buddyEarnings}</Text>
             </View>
 
             <TouchableOpacity

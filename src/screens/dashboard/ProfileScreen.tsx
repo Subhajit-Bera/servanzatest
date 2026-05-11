@@ -252,11 +252,12 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.offWhite }} edges={['left', 'right', 'bottom']}>
-      <ScrollView style={styles.container}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F8F9FA' }} edges={['left', 'right', 'bottom']}>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Header Section */}
         <View style={styles.header}>
           <Avatar.Image
-            size={80}
+            size={90}
             source={{ uri: buddyImage }}
             style={styles.avatar}
           />
@@ -267,7 +268,7 @@ export default function ProfileScreen() {
             <MaterialCommunityIcons
               name={isVerified ? "check-decagram" : "clock-outline"}
               size={16}
-              color={COLORS.white}
+              color={isVerified ? "#fff" : "#fff"}
             />
             <Text style={styles.badgeText}>
               {isVerified ? "Verified Partner" : "Verification Pending"}
@@ -275,145 +276,260 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Personal Information */}
-        <View style={[styles.section, SHADOWS.light]}>
-          <List.Section>
-            {/* <List.Subheader>Account Settings</List.Subheader> */}
+        {/* Content Section */}
+        <View style={styles.contentContainer}>
+          {/* Personal Information */}
+          <View style={styles.section}>
+            <List.Section>
+              <List.Item
+                title="Personal Information"
+                titleStyle={styles.listItemTitle}
+                left={props => <List.Icon {...props} icon="account-edit-outline" color="#2D6A4F" />}
+                onPress={() => navigation.navigate('EditProfile')}
+                right={props => <List.Icon {...props} icon="chevron-right" color="#D0D0D0" />}
+                style={styles.listItem}
+              />
+            </List.Section>
+          </View>
 
-            <List.Item
-              title="Personal Information"
-              left={props => <List.Icon {...props} icon="account-edit-outline" color={COLORS.primary} />}
-              onPress={() => navigation.navigate('EditProfile')}
-              right={props => <List.Icon {...props} icon="chevron-right" />}
-            />
-          </List.Section>
+          {/* Identification Details */}
+          {renderIdentificationSection()}
+
+          {/* Bank Details */}
+          {renderBankDetailsSection()}
+
+          {/* Logout Button */}
+          <Button
+            mode="outlined"
+            onPress={handleLogout}
+            style={styles.logoutBtn}
+            labelStyle={styles.logoutBtnLabel}
+            icon="logout"
+          >
+            Logout
+          </Button>
         </View>
-
-        {/* Identification Details */}
-        {renderIdentificationSection()}
-
-        {/* Bank Details */}
-        {renderBankDetailsSection()}
-
-        {/* Service Area & Skills */}
-        <View style={[styles.section, SHADOWS.light]}>
-          {/* <List.Section>
-            <List.Item
-              title="Service Area"
-              left={props => <List.Icon {...props} icon="map-marker-radius-outline" color={COLORS.primary} />}
-              onPress={() => navigation.navigate('ServiceSelection')}
-              right={props => <List.Icon {...props} icon="chevron-right" />}
-            />
-          </List.Section> */}
-        </View>
-
-        <Button
-          mode="outlined"
-          onPress={handleLogout}
-          style={styles.logoutBtn}
-          textColor={COLORS.error}
-          icon="logout"
-        >
-          Logout
-        </Button>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.offWhite },
-  header: {
-    alignItems: 'center', paddingVertical: 30, backgroundColor: COLORS.white,
-    borderBottomLeftRadius: 24, borderBottomRightRadius: 24, ...SHADOWS.medium
+  container: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
   },
-  avatar: { marginBottom: 10, backgroundColor: COLORS.lightGray },
-  name: { fontSize: 22, fontWeight: 'bold', color: COLORS.charcoal },
-  phone: { fontSize: 14, color: COLORS.mediumGray, marginBottom: 10 },
-  badge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  verified: { backgroundColor: COLORS.primary },
-  pending: { backgroundColor: COLORS.warning },
-  badgeText: { color: COLORS.white, fontWeight: 'bold', fontSize: 12, marginLeft: 5 },
-  section: { marginTop: 16, marginHorizontal: 16, backgroundColor: COLORS.white, borderRadius: 12, overflow: 'hidden' },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: COLORS.charcoal, padding: 16, paddingBottom: 8 },
+  header: {
+    alignItems: 'center',
+    paddingVertical: 36,
+    backgroundColor: '#fff',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E8E8',
+  },
+  avatar: {
+    marginBottom: 16,
+    backgroundColor: '#E8E8E8',
+  },
+  name: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: COLORS.charcoal,
+    marginBottom: 4,
+  },
+  phone: {
+    fontSize: 15,
+    color: '#6B7280',
+    marginBottom: 16,
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  verified: {
+    backgroundColor: '#2D6A4F',
+  },
+  pending: {
+    backgroundColor: '#F59E0B',
+  },
+  badgeText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 13,
+    marginLeft: 6,
+  },
+  contentContainer: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  section: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    overflow: 'hidden',
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.charcoal,
+    padding: 16,
+    paddingBottom: 8,
+  },
+  listItem: {
+    paddingVertical: 4,
+  },
+  listItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.charcoal,
+  },
   documentRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12
+    paddingVertical: 14,
   },
-  documentInfo: { flexDirection: 'row', alignItems: 'center' },
-  documentLabel: { marginLeft: 12, fontSize: 15, color: COLORS.charcoal },
-  documentStatus: { flexDirection: 'row', alignItems: 'center' },
+  documentInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  documentLabel: {
+    marginLeft: 12,
+    fontSize: 15,
+    color: COLORS.charcoal,
+    fontWeight: '500',
+  },
+  documentStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   verifiedTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary + '15',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12
+    backgroundColor: '#E8F8F0',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
-  verifiedTagText: { fontSize: 12, color: COLORS.primary, marginLeft: 4, fontWeight: '500' },
+  verifiedTagText: {
+    fontSize: 12,
+    color: '#2D6A4F',
+    marginLeft: 4,
+    fontWeight: '600',
+  },
   pendingTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.warning + '15',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12
+    backgroundColor: '#FEF3E2',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
-  pendingTagText: { fontSize: 12, color: COLORS.warning, marginLeft: 4, fontWeight: '500' },
-  notSubmittedContainer: { alignItems: 'center', padding: 20 },
-  notSubmittedText: { color: COLORS.mediumGray, marginTop: 8 },
-  bankDetailsContainer: { paddingHorizontal: 16, paddingBottom: 16 },
+  pendingTagText: {
+    fontSize: 12,
+    color: '#F59E0B',
+    marginLeft: 4,
+    fontWeight: '600',
+  },
+  notSubmittedContainer: {
+    alignItems: 'center',
+    padding: 24,
+  },
+  notSubmittedText: {
+    color: '#6B7280',
+    marginTop: 8,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  bankDetailsContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
   bankDetailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12
+    paddingVertical: 14,
   },
-  bankDetailLabel: { fontSize: 14, color: COLORS.mediumGray },
-  bankDetailValue: { fontSize: 14, color: COLORS.charcoal, fontWeight: '500' },
+  bankDetailLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  bankDetailValue: {
+    fontSize: 14,
+    color: COLORS.charcoal,
+    fontWeight: '600',
+  },
   lockNotice: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
-    padding: 8,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 10,
   },
-  lockNoticeText: { fontSize: 12, color: COLORS.mediumGray, marginLeft: 6 },
-  divider: { marginHorizontal: 16 },
-  logoutBtn: { margin: 20, borderColor: COLORS.error },
+  lockNoticeText: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginLeft: 6,
+    fontWeight: '500',
+  },
+  divider: {
+    backgroundColor: '#E8E8E8',
+    height: 1,
+  },
+  logoutBtn: {
+    marginTop: 10,
+    borderColor: '#E17A5E',
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingVertical: 6,
+  },
+  logoutBtnLabel: {
+    color: '#E17A5E',
+    fontWeight: '700',
+    fontSize: 15,
+  },
   submitButton: {
     marginTop: 16,
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
+    backgroundColor: '#2D6A4F',
+    borderRadius: 10,
+    paddingHorizontal: 16,
   },
   submitButtonLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   updateButton: {
     marginTop: 12,
-    borderColor: COLORS.primary,
-    borderRadius: 8,
+    borderColor: '#2D6A4F',
+    borderWidth: 1.5,
+    borderRadius: 10,
   },
   updateButtonLabel: {
     fontSize: 14,
-    color: COLORS.primary,
+    color: '#2D6A4F',
+    fontWeight: '700',
   },
   rejectionContainer: {
     padding: 16,
-    backgroundColor: '#FFF3F3',
+    backgroundColor: '#FFEBEE',
     borderTopWidth: 1,
-    borderTopColor: '#FFE0E0',
+    borderTopColor: '#FFCDD2',
   },
   rejectionText: {
-    fontSize: 13,
-    color: '#D32F2F',
-    marginBottom: 8,
+    fontSize: 14,
+    color: '#B71C1C',
+    marginBottom: 12,
+    fontWeight: '500',
   },
 });

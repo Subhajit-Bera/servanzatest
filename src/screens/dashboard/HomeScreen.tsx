@@ -382,41 +382,48 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           {buddyImage ? (
-            <Avatar.Image size={50} source={buddyImage} style={{ backgroundColor: COLORS.offWhite }} />
+            <Avatar.Image size={48} source={buddyImage} style={{ backgroundColor: COLORS.offWhite }} />
           ) : (
-            <Avatar.Text size={50} label={buddyName.substring(0, 2).toUpperCase()} style={{ backgroundColor: COLORS.primary }} />
+            <Avatar.Text size={48} label={buddyName.substring(0, 2).toUpperCase()} style={{ backgroundColor: COLORS.primary }} />
           )}
-
           <View style={styles.headerTextContainer}>
             <Text style={styles.greeting}>Hello, {buddyName}</Text>
             <View style={styles.badgeContainer}>
               {isVerified ? (
-                <Badge style={styles.verifiedBadge}>Verified Partner</Badge>
+                <View style={styles.verifiedPill}>
+                  <Text style={styles.verifiedPillText}>Verified Partner</Text>
+                </View>
               ) : (
-                <Badge style={styles.pendingBadge}>Verification Pending</Badge>
+                <View style={styles.pendingPill}>
+                  <Text style={styles.pendingPillText}>Verification Pending</Text>
+                </View>
               )}
             </View>
           </View>
         </View>
-        {/* Notification Bell with Badge */}
         <TouchableOpacity
           onPress={() => navigation.navigate('Notifications')}
           style={styles.bellContainer}
         >
-          <Avatar.Icon size={40} icon="bell" style={{ backgroundColor: COLORS.offWhite }} color={COLORS.charcoal} />
+          <MaterialCommunityIcons name="bell-outline" size={26} color={COLORS.charcoal} />
           {unreadCount > 0 && (
-            <Badge style={styles.notificationBadge}>
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </Badge>
+            <View style={styles.notificationDot} />
           )}
         </TouchableOpacity>
       </View>
 
-      <ScrollView refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} />}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} />}
+      >
+        {/* Training / Ready to Work card */}
         {renderTrainingCard()}
+
+        {/* Verification pending banner */}
         {!isVerified && (
           <View style={styles.pendingCard}>
             <MaterialCommunityIcons name="file-clock" size={24} color={COLORS.warning} />
@@ -424,108 +431,335 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {/* Online/Offline Toggle */}
         <View style={[styles.statusCard, isAvailable ? styles.statusActive : styles.statusInactive]}>
           <View>
             <Text style={styles.statusTitle}>{isAvailable ? "You are Online" : "You are Offline"}</Text>
             <Text style={styles.statusSub}>{isAvailable ? "Receiving new jobs" : "Not visible to customers"}</Text>
           </View>
-          <Switch value={isAvailable} onValueChange={handleToggle} trackColor={{ false: COLORS.mediumGray, true: COLORS.lightGreen }} thumbColor={isAvailable ? COLORS.primary : '#f4f3f4'} disabled={!isVerified || !isTrainingCompleted || !jobStartDate} />
+          <Switch
+            value={isAvailable}
+            onValueChange={handleToggle}
+            trackColor={{ false: '#D0D0D0', true: '#A8D5BA' }}
+            thumbColor={isAvailable ? COLORS.primary : '#f4f3f4'}
+            disabled={!isVerified || !isTrainingCompleted || !jobStartDate}
+          />
         </View>
 
+        {/* Stats Cards */}
         <View style={styles.statsContainer}>
-          <View style={[styles.statBox, SHADOWS.light]}>
-            <Text style={styles.statNumber}>{earnings?.today?.count || 0}</Text>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumberRed}>{earnings?.today?.count || 0}</Text>
             <Text style={styles.statLabel}>Jobs Today</Text>
           </View>
-          <View style={[styles.statBox, SHADOWS.light]}>
-            <Text style={styles.statNumber}>₹{earnings?.thisMonth?.amount || 0}</Text>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumberDark}>₹{earnings?.thisMonth?.amount || 0}</Text>
             <Text style={styles.statLabel}>Month Earned</Text>
           </View>
         </View>
 
+        {/* Active Job Card */}
         {activeJob && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Active Job</Text>
-            <Surface style={[styles.jobCard, SHADOWS.green]} onTouchEnd={() => navigation.navigate('JobDetails', { jobId: activeJob.id })}>
+            <TouchableOpacity
+              style={styles.activeJobCard}
+              onPress={() => navigation.navigate('JobDetails', { jobId: activeJob.id })}
+              activeOpacity={0.7}
+            >
               <View style={styles.jobHeader}>
                 <Text style={styles.serviceType}>{getDisplayTitle(activeJob)}</Text>
-                <Badge style={{ backgroundColor: COLORS.accent }}>In Progress</Badge>
+                <View style={styles.inProgressBadge}>
+                  <Text style={styles.inProgressBadgeText}>In Progress</Text>
+                </View>
               </View>
               <Text style={styles.address}>{activeJob.address.formattedAddress}</Text>
-              <Button mode="contained" onPress={() => navigation.navigate('JobDetails', { jobId: activeJob.id })}>View Details</Button>
-            </Surface>
+              <TouchableOpacity
+                style={styles.viewDetailsBtn}
+                onPress={() => navigation.navigate('JobDetails', { jobId: activeJob.id })}
+              >
+                <Text style={styles.viewDetailsBtnText}>View Details</Text>
+              </TouchableOpacity>
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
 
       {renderDateModal()}
-      {/* {renderJobRequestModal()} */}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.white, paddingHorizontal: 16 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  headerTextContainer: { marginLeft: 12 },
-  greeting: { fontSize: 18, fontWeight: 'bold' },
-  verifiedBadge: { backgroundColor: COLORS.primary, paddingHorizontal: 10 },
-  pendingBadge: { backgroundColor: COLORS.warning, paddingHorizontal: 10 },
-  alertCard: { backgroundColor: COLORS.primary, borderRadius: 16, padding: 16, marginBottom: 20 },
-  infoCard: { backgroundColor: COLORS.white, borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#eee' },
-  alertHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  alertTitle: { color: COLORS.white, fontSize: 18, fontWeight: 'bold', marginLeft: 8 },
-  alertBody: { color: COLORS.white, marginBottom: 12 },
-  dateButtons: { flexDirection: 'row', justifyContent: 'space-between' },
-  dateBtn: { flex: 1, marginHorizontal: 5 },
-  pendingCard: { flexDirection: 'row', backgroundColor: '#FFF3E0', padding: 16, borderRadius: 12, marginBottom: 20, alignItems: 'center' },
-  pendingText: { marginLeft: 10, color: '#E65100', flex: 1 },
-  statusCard: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, borderRadius: 12, marginBottom: 20 },
-  statusActive: { backgroundColor: '#E8F8F5', borderLeftWidth: 5, borderLeftColor: COLORS.primary },
-  statusInactive: { backgroundColor: '#F2F3F4', borderLeftWidth: 5, borderLeftColor: COLORS.mediumGray },
-  statusTitle: { fontSize: 16, fontWeight: 'bold' },
-  statusSub: { fontSize: 12, color: COLORS.darkGray },
-  statsContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  statBox: { width: '48%', backgroundColor: COLORS.white, padding: 15, borderRadius: 12, alignItems: 'center' },
-  statNumber: { fontSize: 24, fontWeight: 'bold', color: COLORS.accent },
-  statLabel: { color: COLORS.mediumGray },
-  section: { marginBottom: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
-  jobCard: { backgroundColor: COLORS.white, borderRadius: 12, padding: 16 },
-  jobHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  serviceType: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary },
-  address: { color: COLORS.darkGray, marginBottom: 15 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { width: '85%', backgroundColor: COLORS.white, padding: 20, borderRadius: 16 },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20 },
-  modalOption: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  optionText: { fontSize: 16 },
-  requestCard: { width: '90%', backgroundColor: COLORS.white, borderRadius: 20, padding: 24, elevation: 10 },
-  requestHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
-  requestTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.primary, marginLeft: 10 },
-  divider: { height: 1, backgroundColor: '#eee', marginVertical: 15 },
-  requestBody: { marginBottom: 20 },
-  serviceTitle: { fontSize: 22, fontWeight: 'bold', color: COLORS.charcoal, marginBottom: 10 },
-  row: { flexDirection: 'row', marginBottom: 15 },
-  addressText: { marginLeft: 8, color: COLORS.darkGray, flex: 1 },
-  metaContainer: { flexDirection: 'row', backgroundColor: '#F8F9FA', padding: 15, borderRadius: 12, marginBottom: 15 },
-  metaItem: { flex: 1, alignItems: 'center' },
-  metaLabel: { fontSize: 12, color: COLORS.mediumGray },
-  metaValue: { fontSize: 16, fontWeight: 'bold', color: COLORS.charcoal },
-  urgentBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFEBEE', padding: 10, borderRadius: 8, justifyContent: 'center' },
-  urgentText: { color: '#B00020', fontWeight: 'bold', marginLeft: 6 },
-  actionContainer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  actionBtn: { flex: 1 },
-  badgeContainer: { flexDirection: 'row' },
-  bellContainer: { position: 'relative' },
-  notificationBadge: {
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 20,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+    marginTop: 4,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  headerTextContainer: {
+    marginLeft: 12,
+  },
+  greeting: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.charcoal,
+  },
+  badgeContainer: {
+    flexDirection: 'row',
+    marginTop: 4,
+  },
+  verifiedPill: {
+    backgroundColor: '#2D6A4F',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  verifiedPillText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  pendingPill: {
+    backgroundColor: COLORS.warning,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  pendingPillText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  bellContainer: {
+    position: 'relative',
+    padding: 4,
+  },
+  notificationDot: {
     position: 'absolute',
-    top: -2,
-    right: -2,
+    top: 3,
+    right: 3,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
     backgroundColor: COLORS.error,
-    fontSize: 10,
-    minWidth: 18,
-    height: 18,
+    borderWidth: 1.5,
+    borderColor: COLORS.white,
+  },
+
+  // Training / Info cards
+  alertCard: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 20,
+  },
+  infoCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+  },
+  alertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  alertTitle: {
+    color: COLORS.white,
+    fontSize: 17,
+    fontWeight: '700',
+    marginLeft: 10,
+  },
+  alertBody: {
+    color: COLORS.white,
+    fontSize: 14,
+    marginBottom: 14,
+    lineHeight: 20,
+  },
+  dateBtn: {
+    flex: 1,
+    marginHorizontal: 5,
+  },
+
+  // Pending verification
+  pendingCard: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF3E0',
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  pendingText: {
+    marginLeft: 10,
+    color: '#E65100',
+    flex: 1,
+    fontSize: 14,
+  },
+
+  // Online/Offline toggle
+  statusCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 14,
+    marginBottom: 24,
+  },
+  statusActive: {
+    backgroundColor: '#E8F8F0',
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.primary,
+  },
+  statusInactive: {
+    backgroundColor: '#F5F5F5',
+    borderLeftWidth: 4,
+    borderLeftColor: '#BDBDBD',
+  },
+  statusTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.charcoal,
+  },
+  statusSub: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+
+  // Stats cards
+  statsContainer: {
+    flexDirection: 'row',
+    gap: 14,
+    marginBottom: 24,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+    paddingVertical: 22,
+    borderRadius: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+  },
+  statNumberRed: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#B91C1C',
+    marginBottom: 4,
+  },
+  statNumberDark: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: COLORS.charcoal,
+    marginBottom: 4,
+  },
+  statLabel: {
+    color: '#6B7280',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  // Active job
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+    color: COLORS.charcoal,
+  },
+  activeJobCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    padding: 18,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    ...SHADOWS.light,
+  },
+  jobHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  serviceType: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.charcoal,
+    flex: 1,
+  },
+  inProgressBadge: {
+    backgroundColor: '#2D6A4F',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  inProgressBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  address: {
+    color: '#6B7280',
+    fontSize: 14,
+    marginBottom: 14,
+  },
+  viewDetailsBtn: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  viewDetailsBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '85%',
+    backgroundColor: COLORS.white,
+    padding: 24,
+    borderRadius: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 20,
+    color: COLORS.charcoal,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  optionText: {
+    fontSize: 16,
+    color: COLORS.charcoal,
   },
 });

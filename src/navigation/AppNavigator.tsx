@@ -15,6 +15,7 @@ import JobsListScreen from '../screens/jobs/JobsListScreen';
 import JobTrackingScreen from '../screens/jobs/JobTrackingScreen';
 import JobInProgressScreen from '../screens/jobs/JobInProgressScreen';
 import JobCompletionScreen from '../screens/jobs/JobCompletionScreen';
+import JobDetailsScreen from '../screens/jobs/JobDetailsScreen';
 import TrainingSelectionScreen from '../screens/auth/TrainingSelectionScreen';
 import NotificationScreen from '../screens/dashboard/NotificationScreen';
 
@@ -50,6 +51,11 @@ function DashboardStack() {
       <Stack.Screen
         name="JobCompletion"
         component={JobCompletionScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="JobDetailView"
+        component={JobDetailsScreen}
         options={{ headerShown: false }}
       />
       {/* <Stack.Screen

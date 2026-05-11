@@ -261,7 +261,7 @@ export default function NotificationScreen() {
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn}>
-                    <MaterialCommunityIcons name="close" size={28} color={COLORS.charcoal} />
+                    <MaterialCommunityIcons name="close" size={24} color={COLORS.charcoal} />
                 </TouchableOpacity>
                 <Text style={styles.screenTitle}>Notifications</Text>
                 <TouchableOpacity onPress={handleClearAll} style={styles.clearBtn}>
@@ -272,8 +272,13 @@ export default function NotificationScreen() {
             {/* Notification List */}
             {notifications.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                    <MaterialCommunityIcons name="bell-off-outline" size={64} color={COLORS.lightGray} />
-                    <Text style={styles.emptyText}>No notifications</Text>
+                    <View style={styles.emptyIconCircle}>
+                        <MaterialCommunityIcons name="bell-off-outline" size={48} color={COLORS.primary} />
+                    </View>
+                    <Text style={styles.emptyTitle}>No notifications yet</Text>
+                    <Text style={styles.emptySub}>
+                        When you have new messages, job updates, or alerts, they'll appear here.
+                    </Text>
                 </View>
             ) : (
                 <FlatList
@@ -291,33 +296,65 @@ export default function NotificationScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.offWhite,
+        backgroundColor: COLORS.white,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingHorizontal: 20,
+        paddingVertical: 16,
         backgroundColor: COLORS.white,
-        ...SHADOWS.light,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F0',
     },
     closeBtn: {
         padding: 4,
     },
     screenTitle: {
         fontSize: 18,
-        fontWeight: '600',
+        fontWeight: '700',
         color: COLORS.charcoal,
     },
     clearBtn: {
         padding: 4,
     },
     clearBtnText: {
-        color: COLORS.error,
+        color: '#E17A5E', // Match the light red/pink from the mockup
         fontWeight: '500',
-        fontSize: 14,
+        fontSize: 15,
     },
+
+    // Empty State
+    emptyContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 40,
+    },
+    emptyIconCircle: {
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        backgroundColor: '#F0F7F4', // Light green background
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 24,
+    },
+    emptyTitle: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: COLORS.charcoal,
+        marginBottom: 12,
+    },
+    emptySub: {
+        fontSize: 15,
+        color: '#6B7280',
+        textAlign: 'center',
+        lineHeight: 22,
+    },
+
+    // List Styles
     listContent: {
         padding: 16,
         paddingBottom: 32,
@@ -327,6 +364,8 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: 16,
         marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#E8E8E8',
     },
     cancelCard: {
         borderLeftWidth: 4,
@@ -350,15 +389,15 @@ const styles = StyleSheet.create({
     },
     headerTime: {
         fontSize: 12,
-        color: COLORS.mediumGray,
+        color: '#6B7280',
     },
     divider: {
-        backgroundColor: '#eee',
+        backgroundColor: '#E8E8E8',
         marginVertical: 12,
     },
     serviceTitle: {
         fontSize: 18,
-        fontWeight: 'bold',
+        fontWeight: '700',
         color: COLORS.charcoal,
         marginBottom: 8,
     },
@@ -369,7 +408,7 @@ const styles = StyleSheet.create({
     },
     addressText: {
         fontSize: 14,
-        color: COLORS.mediumGray,
+        color: '#6B7280',
         marginLeft: 6,
         flex: 1,
     },
@@ -386,7 +425,7 @@ const styles = StyleSheet.create({
     },
     metaLabel: {
         fontSize: 11,
-        color: COLORS.mediumGray,
+        color: '#6B7280',
         marginBottom: 2,
     },
     metaValue: {
@@ -416,23 +455,27 @@ const styles = StyleSheet.create({
     },
     ignoreBtn: {
         flex: 1,
-        borderColor: COLORS.error,
-        borderRadius: 8,
+        borderColor: '#D0D0D0',
+        borderWidth: 1.5,
+        borderRadius: 10,
     },
     ignoreBtnLabel: {
-        color: COLORS.error,
+        color: '#6B7280',
+        fontWeight: '600',
     },
     acceptBtn: {
         flex: 1,
         backgroundColor: COLORS.primary,
-        borderRadius: 8,
+        borderRadius: 10,
     },
     acceptBtnLabel: {
         color: COLORS.white,
+        fontWeight: '700',
     },
     dismissBtn: {
-        borderColor: COLORS.mediumGray,
-        borderRadius: 8,
+        borderColor: '#D0D0D0',
+        borderWidth: 1.5,
+        borderRadius: 10,
         flex: 1,
     },
     cancelMessage: {
@@ -442,17 +485,7 @@ const styles = StyleSheet.create({
     },
     cancelTime: {
         fontSize: 12,
-        color: COLORS.mediumGray,
+        color: '#6B7280',
         marginBottom: 12,
-    },
-    emptyContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    emptyText: {
-        fontSize: 16,
-        color: COLORS.mediumGray,
-        marginTop: 16,
     },
 });

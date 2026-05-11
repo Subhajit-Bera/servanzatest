@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Alert } from 'react-native';
-import { Searchbar, Card, Badge, ActivityIndicator, Chip } from 'react-native-paper';
+import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { Searchbar, Card, Badge, ActivityIndicator } from 'react-native-paper';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,7 +9,15 @@ import { COLORS, SHADOWS } from '../../config/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getBookingItems, getDisplayTitle, getBuddyAddress } from '../../utils/bookingHelpers';
 
-type FilterType = 'ACTIVE' | 'PENDING' | 'HISTORY';
+type FilterType = 'TODAY' | 'UPCOMING' | 'COMPLETED' | 'CANCELLED';
+
+// Tab display labels
+const TAB_LABELS: Record<FilterType, string> = {
+  TODAY: 'Today',
+  UPCOMING: 'Upcoming',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+};
 
 // Helper to check if a date is today
 const isToday = (dateStr: string): boolean => {
@@ -37,8 +45,8 @@ const isFuture = (dateStr: string): boolean => {
 const fetchJobsByFilter = async (filter: FilterType) => {
   let filteredJobs: any[] = [];
 
-  if (filter === 'ACTIVE') {
-    // ACTIVE = Today's jobs with active statuses
+  if (filter === 'TODAY') {
+    // TODAY = Today's jobs with active statuses
     const response = await buddyApi.getJobs();
     const allJobs = response.data?.data?.jobs || [];
     const activeStatuses = ['ACCEPTED', 'ON_WAY', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'];
@@ -51,8 +59,8 @@ const fetchJobsByFilter = async (filter: FilterType) => {
       return hasActiveStatus && scheduledStart && isJobToday;
     });
 
-  } else if (filter === 'PENDING') {
-    // PENDING = Future jobs (after today) with ACCEPTED status ONLY
+  } else if (filter === 'UPCOMING') {
+    // UPCOMING = Future jobs (after today) with ACCEPTED status ONLY
     const response = await buddyApi.getJobs();
     const allJobs = response.data?.data?.jobs || [];
 
@@ -64,10 +72,18 @@ const fetchJobsByFilter = async (filter: FilterType) => {
       return isAccepted && isFutureDate;
     });
 
-  } else {
-    // HISTORY = completed/rejected jobs
+  } else if (filter === 'COMPLETED') {
+    // COMPLETED = Only completed jobs from history
     const response = await buddyApi.getJobHistory({ page: 1, limit: 50 });
-    filteredJobs = response.data?.data?.history || [];
+    const history = response.data?.data?.history || [];
+    filteredJobs = history.filter((j: any) => j.status === 'COMPLETED');
+
+  } else {
+    // CANCELLED = Only cancelled jobs from history (buddy accepted but cancelled)
+    // Exclude REJECTED (ignored jobs)
+    const response = await buddyApi.getJobHistory({ page: 1, limit: 50 });
+    const history = response.data?.data?.history || [];
+    filteredJobs = history.filter((j: any) => j.status === 'CANCELLED');
   }
 
   return filteredJobs;
@@ -78,8 +94,8 @@ export default function JobsListScreen() {
   const route = useRoute<any>();
   const queryClient = useQueryClient();
 
-  // Get initial filter from route params (defaults to 'ACTIVE')
-  const initialFilter = route.params?.initialFilter || 'ACTIVE';
+  // Get initial filter from route params (defaults to 'TODAY')
+  const initialFilter = route.params?.initialFilter || 'TODAY';
   const [filter, setFilter] = useState<FilterType>(initialFilter);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -114,6 +130,10 @@ export default function JobsListScreen() {
 
   // --- Actions ---
 
+  const handleViewDetails = (assignmentId: string) => {
+    navigation.navigate('Home', { screen: 'JobDetailView', params: { assignmentId } });
+  };
+
   const handleTrackLocation = (assignmentId: string, status: string, scheduledStart?: string) => {
     if (status === 'ACCEPTED' && scheduledStart && !canTrackLocation(scheduledStart)) {
       return;
@@ -121,7 +141,7 @@ export default function JobsListScreen() {
     if (status === 'IN_PROGRESS') {
       navigation.navigate('Home', { screen: 'JobInProgress', params: { assignmentId } });
     } else if (status === 'COMPLETED') {
-      navigation.navigate('Home', { screen: 'JobDetails', params: { assignmentId } });
+      handleViewDetails(assignmentId);
     } else {
       navigation.navigate('Home', { screen: 'JobTracking', params: { assignmentId } });
     }
@@ -193,12 +213,6 @@ export default function JobsListScreen() {
     });
   };
 
-  const getShortAddress = (address: string) => {
-    if (!address) return 'Address';
-    const parts = address.split(',');
-    return parts.slice(0, 2).join(', ').substring(0, 40) + (address.length > 40 ? '...' : '');
-  };
-
   const getActionButtonLabel = (status: string) => {
     switch (status) {
       case 'ACCEPTED': return 'Track Location';
@@ -234,12 +248,7 @@ export default function JobsListScreen() {
     return (
       <Card
         style={[styles.card, SHADOWS.light, inProgress && styles.glowingCard]}
-        onPress={() => {
-          if (filter === 'ACTIVE' && status !== 'COMPLETED') {
-            if (status === 'ACCEPTED' && !canTrackLocation(scheduledStart)) return;
-            handleTrackLocation(item.id, status, scheduledStart);
-          }
-        }}
+        onPress={() => handleViewDetails(item.id)}
       >
         <Card.Content>
           <View style={styles.row}>
@@ -264,7 +273,7 @@ export default function JobsListScreen() {
             </Text>
           </View>
 
-          {filter === 'ACTIVE' && status !== 'COMPLETED' && (
+          {filter === 'TODAY' && status !== 'COMPLETED' && (
             <View style={styles.actionRow}>
               <TouchableOpacity
                 style={[
@@ -272,7 +281,7 @@ export default function JobsListScreen() {
                   inProgress && styles.inProgressButton,
                   (!inProgress && !canTrackLocation(scheduledStart)) && styles.disabledButton
                 ]}
-                onPress={() => handleTrackLocation(item.id, status)}
+                onPress={() => handleTrackLocation(item.id, status, scheduledStart)}
                 disabled={!inProgress && !canTrackLocation(scheduledStart)}
               >
                 <MaterialCommunityIcons
@@ -310,14 +319,14 @@ export default function JobsListScreen() {
             </View>
           )}
 
-          {filter === 'ACTIVE' && status === 'COMPLETED' && (
+          {filter === 'TODAY' && status === 'COMPLETED' && (
             <View style={styles.completedRow}>
               <MaterialCommunityIcons name="check-decagram" size={18} color="#4CAF50" />
               <Text style={styles.completedText}>Completed Today</Text>
             </View>
           )}
 
-          {(filter === 'PENDING' || (filter === 'HISTORY' && status !== 'COMPLETED')) && filter !== 'HISTORY' && (
+          {filter === 'UPCOMING' && (
             <View style={styles.actionRow}>
               <TouchableOpacity style={styles.rejectButton} onPress={() => handleRejectJob(item.id)}>
                 <MaterialCommunityIcons name="close-circle" size={16} color="#F44336" />
@@ -326,19 +335,20 @@ export default function JobsListScreen() {
             </View>
           )}
 
-          {filter === 'HISTORY' && (
+          {filter === 'COMPLETED' && (
             <View style={styles.completedRow}>
-              <MaterialCommunityIcons
-                name={status === 'COMPLETED' ? 'check-decagram' : 'close-circle'}
-                size={18}
-                color={status === 'COMPLETED' ? '#4CAF50' : '#F44336'}
-              />
-              <Text style={{
-                color: status === 'COMPLETED' ? '#4CAF50' : '#F44336',
-                fontWeight: '600',
-                fontSize: 14
-              }}>
-                {status === 'COMPLETED' ? 'Completed' : 'Rejected'}
+              <MaterialCommunityIcons name="check-decagram" size={18} color="#4CAF50" />
+              <Text style={{ color: '#4CAF50', fontWeight: '600', fontSize: 14 }}>
+                Completed
+              </Text>
+            </View>
+          )}
+
+          {filter === 'CANCELLED' && (
+            <View style={styles.completedRow}>
+              <MaterialCommunityIcons name="close-circle" size={18} color="#F44336" />
+              <Text style={{ color: '#F44336', fontWeight: '600', fontSize: 14 }}>
+                Cancelled
               </Text>
             </View>
           )}
@@ -348,34 +358,57 @@ export default function JobsListScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.screenTitle}>My Jobs</Text>
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.screenTitle}>My Jobs</Text>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.bellContainer}>
+            <MaterialCommunityIcons name="bell-outline" size={26} color={COLORS.charcoal} />
+            {/* If you have unreadCount from context, you can add the dot here */}
+          </TouchableOpacity>
+          {/* Using a generic avatar icon as placeholder, since we don't fetch profile here directly */}
+          <MaterialCommunityIcons name="account-circle" size={32} color={COLORS.mediumGray} />
+        </View>
+      </View>
 
       <Searchbar
         placeholder="Search jobs..."
         onChangeText={setSearchQuery}
         value={searchQuery}
         style={styles.searchBar}
+        inputStyle={styles.searchInput}
+        iconColor={COLORS.mediumGray}
         elevation={0}
       />
 
-      <View style={styles.filterContainer}>
-        {['ACTIVE', 'PENDING', 'HISTORY'].map((f) => (
-          <Chip
-            key={f}
-            selected={filter === f}
-            onPress={() => setFilter(f as FilterType)}
-            style={[styles.chip, filter === f && styles.activeChip]}
-            textStyle={filter === f && styles.activeChipText}
-          >
-            {f.charAt(0) + f.slice(1).toLowerCase()}
-          </Chip>
-        ))}
+      <View style={styles.filterWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterContainer}
+        >
+          {(['TODAY', 'UPCOMING', 'COMPLETED', 'CANCELLED'] as FilterType[]).map((f) => (
+            <TouchableOpacity
+              key={f}
+              onPress={() => setFilter(f)}
+              style={[styles.chip, filter === f && styles.activeChip]}
+              activeOpacity={0.7}
+            >
+              {filter === f && (
+                <MaterialCommunityIcons name="check" size={16} color="#fff" style={{ marginRight: 4 }} />
+              )}
+              <Text style={[styles.chipText, filter === f && styles.activeChipText]}>
+                {TAB_LABELS[f]}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       {isLoading && !isRefetching && !jobs.length ? (
         <View style={styles.center}>
-          <ActivityIndicator color={COLORS.primary} size="large" />
+          <ActivityIndicator color="#2D6A4F" size="large" />
         </View>
       ) : (
         <FlatList
@@ -383,57 +416,204 @@ export default function JobsListScreen() {
           renderItem={renderJobItem}
           keyExtractor={(item) => item.id || Math.random().toString()}
           contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <MaterialCommunityIcons name="clipboard-text-off-outline" size={60} color={COLORS.lightGray} />
-              <Text style={styles.emptyText}>No {filter.toLowerCase()} jobs found.</Text>
+              <MaterialCommunityIcons name="clipboard-text-off-outline" size={60} color="#D0D0D0" />
+              <Text style={styles.emptyText}>No {TAB_LABELS[filter].toLowerCase()} jobs found.</Text>
             </View>
           }
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.offWhite, paddingTop: 50 },
-  screenTitle: { fontSize: 24, fontWeight: 'bold', color: COLORS.charcoal, paddingHorizontal: 16, marginBottom: 16 },
-  searchBar: { marginHorizontal: 16, marginBottom: 16, backgroundColor: COLORS.white, borderRadius: 12, borderWidth: 1, borderColor: '#eee' },
-  filterContainer: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 16 },
-  chip: { marginRight: 8, backgroundColor: COLORS.white, borderColor: COLORS.lightGray, borderWidth: 1 },
-  activeChip: { backgroundColor: '#E8F8F5', borderColor: COLORS.primary },
-  activeChipText: { color: COLORS.primary, fontWeight: 'bold' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { paddingHorizontal: 16, paddingBottom: 20 },
-  card: { backgroundColor: COLORS.white, borderRadius: 12, marginBottom: 12 },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  serviceTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.charcoal, flex: 1 },
-  infoItem: { flexDirection: 'row', alignItems: 'center' },
-  infoText: { fontSize: 12, color: COLORS.mediumGray, marginLeft: 4 },
-  address: { fontSize: 12, color: COLORS.darkGray, marginLeft: 4, flex: 1 },
-  price: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary },
-  actionRow: { flexDirection: 'row', marginTop: 12, gap: 8 },
+  container: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  screenTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#2D6A4F', // Dark green header
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  bellContainer: {
+    padding: 4,
+  },
+  searchBar: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    height: 50,
+  },
+  searchInput: {
+    fontSize: 15,
+    color: COLORS.charcoal,
+  },
+  filterWrapper: {
+    marginBottom: 20,
+  },
+  filterContainer: {
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+  },
+  activeChip: {
+    backgroundColor: '#2D6A4F', // Solid dark green
+    borderColor: '#2D6A4F',
+  },
+  chipText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  activeChipText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    overflow: 'hidden', // For the left border
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  serviceTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.charcoal,
+    flex: 1,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoText: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginLeft: 6,
+  },
+  address: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginLeft: 6,
+    flex: 1,
+  },
+  price: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2D6A4F',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    marginTop: 16,
+    gap: 10,
+  },
   trackButton: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#2196F3', paddingVertical: 10, borderRadius: 8, gap: 6,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2D6A4F',
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 6,
   },
   rejectButton: {
-    flex: 0.6, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#fff', borderWidth: 1, borderColor: '#F44336',
-    paddingVertical: 10, borderRadius: 8, gap: 4,
+    flex: 0.6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#D0D0D0',
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 4,
   },
-  buttonText: { color: '#fff', fontWeight: '600', fontSize: 13 },
-  rejectButtonText: { color: '#F44336', fontWeight: '600', fontSize: 13 },
-  disabledButton: { backgroundColor: '#f5f5f5', borderColor: '#ddd' },
-  disabledButtonText: { color: '#aaa' },
+  buttonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  rejectButtonText: {
+    color: '#6B7280',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  disabledButton: {
+    backgroundColor: '#f5f5f5',
+    borderColor: '#ddd',
+  },
+  disabledButtonText: {
+    color: '#aaa',
+  },
   glowingCard: {
-    borderWidth: 2, borderColor: '#2196F3', shadowColor: '#2196F3', shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4, shadowRadius: 8, elevation: 8,
+    borderLeftWidth: 6,
+    borderLeftColor: '#2D6A4F',
+    borderColor: '#E8E8E8',
   },
-  inProgressButton: { backgroundColor: '#FF9800' },
-  completedRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 6 },
-  completedText: { color: '#4CAF50', fontWeight: '600', fontSize: 14 },
-  emptyState: { alignItems: 'center', marginTop: 100 },
-  emptyText: { color: COLORS.mediumGray, marginTop: 10 },
+  inProgressButton: {
+    backgroundColor: '#F59E0B',
+  },
+  completedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+    gap: 6,
+  },
+  completedText: {
+    color: '#4CAF50',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  emptyState: {
+    alignItems: 'center',
+    marginTop: 100,
+  },
+  emptyText: {
+    color: '#6B7280',
+    marginTop: 12,
+    fontSize: 15,
+  },
 });

@@ -121,7 +121,7 @@ export const JobRequestProvider = ({ children }: { children: ReactNode }) => {
 
             // Navigate to correct section based on scheduled date
             // Add refreshKey to force refresh even if already on Jobs screen
-            const initialFilter = isToday(job?.scheduledDate) ? 'ACTIVE' : 'PENDING';
+            const initialFilter = isToday(job?.scheduledDate) ? 'TODAY' : 'UPCOMING';
             navigate('Jobs', { initialFilter, refreshKey: Date.now() });
         } catch (error: any) {
             console.error('Accept job error:', error);
@@ -168,6 +168,8 @@ export const JobRequestProvider = ({ children }: { children: ReactNode }) => {
                 address: data.address || 'Address',
                 price: data.price || 0,
                 scheduledDate: data.scheduledStart, // Use scheduledStart from backend
+                scheduledEnd: data.scheduledEnd,
+                metadata: data.metadata,
                 isImmediate: data.isImmediate === true || data.isImmediate === 'true',
             };
 

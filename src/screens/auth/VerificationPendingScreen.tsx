@@ -275,35 +275,40 @@ function VerificationField({
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    padding: 20,
-    backgroundColor: COLORS.offWhite || '#fff'
+    padding: 24,
+    backgroundColor: '#F8F9FA'
   },
   img: {
-    width: 150,
-    height: 150,
-    marginBottom: 20,
+    width: 140,
+    height: 140,
+    marginBottom: 24,
     alignSelf: 'center'
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-    marginBottom: 10,
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#2D6A4F',
+    marginBottom: 12,
     textAlign: 'center'
   },
   sub: {
     textAlign: 'center',
-    color: COLORS.mediumGray,
-    fontSize: 16,
-    marginBottom: 20
+    color: '#6B7280',
+    fontSize: 15,
+    marginBottom: 24,
+    lineHeight: 22,
   },
   statusContainer: {
     width: '100%',
-    marginTop: 20
+    marginTop: 10
   },
   fieldCard: {
-    marginBottom: 12,
-    backgroundColor: COLORS.white || '#fff'
+    marginBottom: 16,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    elevation: 0,
   },
   fieldRow: {
     flexDirection: 'row',
@@ -315,7 +320,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: 8,
     color: COLORS.charcoal
   },
@@ -325,9 +330,9 @@ const styles = StyleSheet.create({
     gap: 4
   },
   verifiedText: {
-    color: COLORS.primary,
+    color: '#2D6A4F',
     fontSize: 14,
-    fontWeight: '500'
+    fontWeight: '600'
   },
   rejectedBadge: {
     flexDirection: 'row',
@@ -335,9 +340,9 @@ const styles = StyleSheet.create({
     gap: 4
   },
   rejectedText: {
-    color: COLORS.warning || '#FF9800',
+    color: '#F59E0B',
     fontSize: 14,
-    fontWeight: '500'
+    fontWeight: '600'
   },
   pendingBadge: {
     flexDirection: 'row',
@@ -345,8 +350,9 @@ const styles = StyleSheet.create({
     gap: 4
   },
   pendingText: {
-    color: COLORS.mediumGray,
-    fontSize: 14
+    color: '#6B7280',
+    fontSize: 14,
+    fontWeight: '500'
   },
   notSubmittedBadge: {
     flexDirection: 'row',
@@ -354,25 +360,26 @@ const styles = StyleSheet.create({
     gap: 4
   },
   notSubmittedText: {
-    color: COLORS.mediumGray,
+    color: '#6B7280',
     fontSize: 14,
-    fontStyle: 'italic'
+    fontStyle: 'italic',
+    fontWeight: '500'
   },
   hintContainer: {
     marginTop: 12,
-    padding: 10,
-    backgroundColor: '#F5F5F5',
+    padding: 12,
+    backgroundColor: '#F8F9FA',
     borderRadius: 8
   },
   hintText: {
-    fontSize: 12,
-    color: COLORS.mediumGray,
+    fontSize: 13,
+    color: '#6B7280',
     lineHeight: 18
   },
   commentContainer: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: '#FFF3E0',
+    backgroundColor: '#FEF3E2',
     borderRadius: 8
   },
   commentLabel: {

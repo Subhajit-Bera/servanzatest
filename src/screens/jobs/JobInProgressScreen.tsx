@@ -215,17 +215,6 @@ export default function JobInProgressScreen() {
                             </View>
                         </View>
 
-                        {/* Price */}
-                        <View style={styles.detailRow}>
-                            <View style={styles.detailIcon}>
-                                <MaterialCommunityIcons name="currency-inr" size={20} color={COLORS.primary} />
-                            </View>
-                            <View style={styles.detailContent}>
-                                <Text style={styles.detailLabel}>Expected Payout</Text>
-                                <Text style={[styles.detailValue, styles.priceText]}>₹{displayData.totalAmount}</Text>
-                            </View>
-                        </View>
-
                         <View style={styles.divider} />
 
                         {/* Customer Name */}
