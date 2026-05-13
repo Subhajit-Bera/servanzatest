@@ -68,16 +68,6 @@ function DashboardStack() {
         component={TrainingSelectionScreen}
         options={{ headerShown: true, title: 'Training', headerBackTitle: 'Back' }}
       />
-      <Stack.Screen 
-        name="Chat" 
-        component={ChatScreen} 
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen 
-        name="VoiceCall" 
-        component={VoiceCallScreen}
-        options={{ headerShown: false, presentation: 'modal' }} 
-      />
     </Stack.Navigator>
   );
 }
@@ -118,7 +108,7 @@ function ProfileStack() {
   );
 }
 
-export default function AppNavigator() {
+function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -162,5 +152,22 @@ export default function AppNavigator() {
         })}
       />
     </Tab.Navigator>
+  );
+}
+
+export default function AppNavigator() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen 
+        name="Chat" 
+        component={ChatScreen} 
+      />
+      <Stack.Screen 
+        name="VoiceCall" 
+        component={VoiceCallScreen}
+        options={{ presentation: 'modal' }} 
+      />
+    </Stack.Navigator>
   );
 }

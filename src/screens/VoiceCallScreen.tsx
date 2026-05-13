@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -30,10 +30,13 @@ const VoiceCallScreen = () => {
         isMuted,
         isSpeaker,
         initiateCall,
+        answerCall,
         endCall,
         toggleMute,
         toggleSpeaker,
     } = useChat();
+
+    const hasAnsweredRef = useRef(false);
 
     // Initiate call on mount if it's an outgoing call
     useEffect(() => {
@@ -41,6 +44,14 @@ const VoiceCallScreen = () => {
             initiateCall(bookingId);
         }
     }, [isIncoming, callState, bookingId, initiateCall]);
+
+    // Answer call on mount if it's an incoming call
+    useEffect(() => {
+        if (isIncoming && callState === 'ringing' && !hasAnsweredRef.current) {
+            hasAnsweredRef.current = true;
+            answerCall();
+        }
+    }, [isIncoming, callState, answerCall]);
 
     // Handle end/disconnect
     useEffect(() => {

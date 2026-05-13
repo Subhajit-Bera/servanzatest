@@ -364,7 +364,7 @@ export default function JobDetailsScreen() {
                         </Text>
                     </View>
 
-                    {!actionsEnabled && timeUntilAction ? (
+                    {!['CANCELLED', 'REJECTED', 'COMPLETED'].includes(status) && !actionsEnabled && timeUntilAction ? (
                         <Text style={styles.timeGateHint}>
                             <MaterialCommunityIcons name="clock-alert-outline" size={12} color={COLORS.mediumGray} />
                             {' '}{timeUntilAction}

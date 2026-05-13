@@ -3,6 +3,8 @@ import { useSocket } from './SocketContext';
 import { useAppSelector } from '../store/hooks';
 import { WEBRTC_CONFIG } from '../config/constants';
 import InCallManager from 'react-native-incall-manager';
+import apiClient from '../api/client';
+import { RTCPeerConnection, RTCIceCandidate, RTCSessionDescription, mediaDevices } from 'react-native-webrtc';
 
 export interface ChatMessage {
     id: string;
@@ -123,8 +125,25 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
 
     const sendMessage = useCallback((bookingId: string, content: string) => {
         if (!socket.connected || !content.trim()) return;
+
+        const tempMessage: ChatMessage = {
+            id: Date.now().toString() + Math.random().toString(36).substring(7),
+            bookingId,
+            senderId: currentUserId,
+            sender: { id: currentUserId, name: user?.name || '', role: user?.role || '' },
+            content: content.trim(),
+            type: 'TEXT',
+            isRead: false,
+            createdAt: new Date().toISOString()
+        };
+
+        setMessages(prev => {
+            const bookingMsgs = prev[bookingId] || [];
+            return { ...prev, [bookingId]: [...bookingMsgs, tempMessage] };
+        });
+
         socket.emit('chat:send', { bookingId, content: content.trim(), type: 'TEXT' });
-    }, [socket]);
+    }, [socket, currentUserId, user]);
 
     const sendTyping = useCallback((bookingId: string, isTypingStatus: boolean) => {
         if (!socket.connected) return;
@@ -169,20 +188,20 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const createPeerConnection = useCallback((servers?: RTCIceServer[]) => {
         const pc = new RTCPeerConnection({ iceServers: servers || iceServersRef.current });
 
-        pc.onicecandidate = (event) => {
+        (pc as any).addEventListener('icecandidate', (event: any) => {
             if (event.candidate && callIdRef.current && socket.connected) {
                 socket.emit('call:ice-candidate', {
                     callId: callIdRef.current,
                     candidate: event.candidate.toJSON(),
                 });
             }
-        };
+        });
 
-        pc.onconnectionstatechange = () => {
+        (pc as any).addEventListener('connectionstatechange', () => {
             if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
                 endCall();
             }
-        };
+        });
 
         peerConnectionRef.current = pc;
         return pc;
@@ -203,12 +222,11 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         if (!socket.connected || callState !== 'idle') return;
 
         try {
-            const { mediaDevices } = require('react-native-webrtc');
             const stream = await mediaDevices.getUserMedia({ audio: true, video: false });
-            localStreamRef.current = stream;
+            localStreamRef.current = stream as any;
 
             const pc = createPeerConnection();
-            stream.getTracks().forEach((track: MediaStreamTrack) => pc.addTrack(track, stream));
+            (stream as any).getTracks().forEach((track: any) => pc.addTrack(track, stream as any));
 
             const offer = await pc.createOffer({});
             await pc.setLocalDescription(offer);
@@ -231,16 +249,15 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         if (!socket.connected || !incomingCall) return;
 
         try {
-            const { mediaDevices } = require('react-native-webrtc');
             const stream = await mediaDevices.getUserMedia({ audio: true, video: false });
-            localStreamRef.current = stream;
+            localStreamRef.current = stream as any;
 
             iceServersRef.current = incomingCall.iceServers;
             const pc = createPeerConnection(incomingCall.iceServers);
             
-            stream.getTracks().forEach((track: MediaStreamTrack) => pc.addTrack(track, stream));
+            (stream as any).getTracks().forEach((track: any) => pc.addTrack(track, stream as any));
 
-            await pc.setRemoteDescription(incomingCall.offer);
+            await pc.setRemoteDescription(new RTCSessionDescription(incomingCall.offer as any));
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
 
@@ -312,6 +329,10 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             setMessages(prev => {
                 const bookingMsgs = prev[data.bookingId] || [];
                 if (bookingMsgs.some(m => m.id === data.id)) return prev;
+                
+                // Ignore our own echoes because optimistic UI already added them
+                if (data.senderId === currentUserId) return prev;
+                
                 return { ...prev, [data.bookingId]: [...bookingMsgs, data] };
             });
 
@@ -365,11 +386,11 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             setCallState('ringing');
         };
 
-        const handleCallAnswered = async (data: { callId: string; answer: RTCSessionDescriptionInit }) => {
+        const handleCallAnswered = async (data: { callId: string; answer: any }) => {
             const pc = peerConnectionRef.current;
             if (!pc) return;
             try {
-                await pc.setRemoteDescription(data.answer);
+                await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
                 setCallState('connected');
                 startDurationTimer();
             } catch (error) {
@@ -382,7 +403,6 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             const pc = peerConnectionRef.current;
             if (!pc) return;
             try {
-                const { RTCIceCandidate } = require('react-native-webrtc');
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
             } catch (error) {
                 console.error('[ChatContext] ICE candidate error:', error);
@@ -434,7 +454,6 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
 
         const fetchHistory = async () => {
             try {
-                const { apiClient } = require('../utils/api');
                 const response = await apiClient.get(`/bookings/${activeChatBookingId}/messages`);
                 const history = response.data?.data?.messages || [];
                 setMessages(prev => ({

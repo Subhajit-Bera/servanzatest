@@ -79,11 +79,10 @@ const fetchJobsByFilter = async (filter: FilterType) => {
     filteredJobs = history.filter((j: any) => j.status === 'COMPLETED');
 
   } else {
-    // CANCELLED = Only cancelled jobs from history (buddy accepted but cancelled)
-    // Exclude REJECTED (ignored jobs)
+    // CANCELLED = Only cancelled jobs from history
     const response = await buddyApi.getJobHistory({ page: 1, limit: 50 });
     const history = response.data?.data?.history || [];
-    filteredJobs = history.filter((j: any) => j.status === 'CANCELLED');
+    filteredJobs = history.filter((j: any) => j.booking?.status === 'CANCELLED');
   }
 
   return filteredJobs;

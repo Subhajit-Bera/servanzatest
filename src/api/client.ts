@@ -183,7 +183,7 @@ export const authApi = {
   checkPhone: (phone: string) => apiClient.post('/auth/check-phone', { phone, role: 'BUDDY' }),
 
   verifyFirebasePhone: (idToken: string) => apiClient.post('/auth/phone/firebase', { idToken, role: 'BUDDY' }),
-  updateDeviceToken: (token: string) => apiClient.post('/users/device-token', { token }),
+  updateDeviceToken: (token: string) => apiClient.post('/users/device-token', { token, appSource: 'BUDDY_APP' }),
 };
 
 export const buddyApi = {
