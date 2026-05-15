@@ -22,6 +22,7 @@ import { getMessaging, onMessage, onNotificationOpenedApp, getInitialNotificatio
 
 import { COLORS, SHADOWS } from '../../config/theme';
 import { fetchProfile, fetchEarningsSummary, toggleAvailability } from '../../store/slices/buddySlice';
+import { CommonActions } from '@react-navigation/native';
 
 import { requestUserPermission } from '../../utils/notification';
 import { buddyApi } from '../../api/client';
@@ -47,6 +48,7 @@ export default function HomeScreen() {
 
   // --- Redux State ---
   const { profile, earnings, isAvailable, activeJob, loading } = useAppSelector((state) => state.buddy);
+  const { user } = useAppSelector((state) => state.auth);
 
   // --- Local State ---
   const [showDateModal, setShowDateModal] = useState(false);
@@ -56,8 +58,8 @@ export default function HomeScreen() {
   const [jobRequests, setJobRequests] = useState<JobRequest[]>([]);
   const [isAccepting, setIsAccepting] = useState(false);
 
-  const buddyName = profile?.user?.name || profile?.name || 'Buddy';
-  const rawImage = profile?.user?.profileImage || profile?.profileImage;
+  const buddyName = user?.name || profile?.user?.name || profile?.name || 'Buddy';
+  const rawImage = user?.profileImage || profile?.user?.profileImage || profile?.profileImage;
   const buddyImage = (rawImage && rawImage.startsWith('http')) ? { uri: rawImage } : null;
   const isVerified = profile?.isVerified;
   const jobStartDate = profile?.jobStartDate;
@@ -406,7 +408,7 @@ export default function HomeScreen() {
           </View>
         </View>
         <TouchableOpacity
-          onPress={() => navigation.navigate('Notifications')}
+          onPress={() => navigation.dispatch(CommonActions.navigate({ name: 'Notifications' }))}
           style={styles.bellContainer}
         >
           <MaterialCommunityIcons name="bell-outline" size={26} color={COLORS.charcoal} />

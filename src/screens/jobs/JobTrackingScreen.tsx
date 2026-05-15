@@ -194,21 +194,32 @@ export default function JobTrackingScreen() {
             return;
         }
 
-        // Get initial location
-        const location = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.High,
-        });
+        try {
+            // First try to get the last known position to prevent blocking/hanging
+            let location = await Location.getLastKnownPositionAsync({});
+            
+            // If last known position is null, try to get current position with a timeout/balanced accuracy
+            if (!location) {
+                location = await Promise.race([
+                    Location.getCurrentPositionAsync({
+                        accuracy: Location.Accuracy.Balanced,
+                    }),
+                    new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000))
+                ]);
+            }
 
-        const initialLocation = {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-        };
-
-        setBuddyLocation(initialLocation);
-        setHeading(location.coords.heading || 0);
-
-        // Send initial location to backend via Socket.IO
-        sendLocationToBackend(initialLocation.latitude, initialLocation.longitude);
+            if (location) {
+                const initialLocation = {
+                    latitude: location.coords.latitude,
+                    longitude: location.coords.longitude,
+                };
+                setBuddyLocation(initialLocation);
+                setHeading(location.coords.heading || 0);
+                sendLocationToBackend(initialLocation.latitude, initialLocation.longitude);
+            }
+        } catch (error) {
+            console.warn('[JobTracking] Initial location fetch failed, relying on watchPosition:', error);
+        }
 
         // Watch location updates with high accuracy (foreground)
         locationSubscription.current = await Location.watchPositionAsync(
@@ -322,8 +333,20 @@ export default function JobTrackingScreen() {
     };
 
     const handleCallUser = () => {
-        if (job?.booking.user.phone) {
-            Linking.openURL(`tel:${job.booking.user.phone}`);
+        if (job) {
+            navigation.navigate('VoiceCall', {
+                bookingId: job.booking.id,
+                buddyName: job.booking.user.name, // The user's name acts as buddyName here for the VoiceCall component logic
+            });
+        }
+    };
+
+    const handleChatUser = () => {
+        if (job) {
+            navigation.navigate('Chat', {
+                bookingId: job.booking.id,
+                buddyName: job.booking.user.name,
+            });
         }
     };
 
@@ -431,7 +454,7 @@ export default function JobTrackingScreen() {
                 <Marker
                     coordinate={destination}
                     title={job.booking.user.name}
-                    description={getBuddyAddress(job.booking.address)}
+                    description={job.booking.address.formattedAddress}
                     anchor={{ x: 0.5, y: 1 }}
                 >
                     <View style={styles.destinationMarkerContainer}>
@@ -488,23 +511,28 @@ export default function JobTrackingScreen() {
                     </View>
                 </View>
 
-                {/* User Info */}
+                {/* User Info & Communication */}
                 <View style={styles.userInfoRow}>
                     <View style={styles.userInfo}>
                         <Text style={styles.userName}>{job.booking.user.name}</Text>
                         <Text style={styles.serviceName}>{getDisplayTitle(job.booking)}</Text>
                     </View>
-                    <TouchableOpacity style={styles.callButton} onPress={handleCallUser}>
-                        <MaterialCommunityIcons name="phone" size={24} color="#fff" />
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <TouchableOpacity style={styles.chatButton} onPress={handleChatUser}>
+                            <MaterialCommunityIcons name="chat" size={24} color="#fff" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.callButton} onPress={handleCallUser}>
+                            <MaterialCommunityIcons name="phone" size={24} color="#fff" />
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 {/* Address with Open in Maps link */}
                 <View style={styles.addressRow}>
                     <MaterialCommunityIcons name="map-marker" size={18} color="#F44336" />
                     <View style={styles.addressContent}>
-                        <Text style={styles.addressText} numberOfLines={2}>
-                            {getBuddyAddress(job.booking.address)}
+                        <Text style={styles.addressText} numberOfLines={3}>
+                            {job.booking.address.formattedAddress}
                         </Text>
                         {job.status === 'ON_WAY' && (
                             <TouchableOpacity
@@ -801,6 +829,19 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         shadowColor: '#4CAF50',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        elevation: 5,
+    },
+    chatButton: {
+        backgroundColor: COLORS.primary,
+        width: 52,
+        height: 52,
+        borderRadius: 26,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: COLORS.primary,
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.3,
         shadowRadius: 5,

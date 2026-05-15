@@ -61,7 +61,7 @@ export default function JobInProgressScreen() {
                     serviceName: getDisplayTitle(jobData.booking),
                     customerName: jobData.booking.user.name,
                     customerPhone: jobData.booking.user.phone,
-                    address: getBuddyAddress(jobData.booking.address),
+                    address: jobData.booking.address?.formattedAddress || getBuddyAddress(jobData.booking.address),
                     totalAmount: jobData.booking.employeePayout,
                 });
             }
@@ -111,9 +111,20 @@ export default function JobInProgressScreen() {
     };
 
     const handleCallCustomer = () => {
-        const phone = job?.booking?.user?.phone || activeJob?.customerPhone;
-        if (phone) {
-            Linking.openURL(`tel:${phone}`);
+        if (job) {
+            navigation.navigate('VoiceCall', {
+                bookingId: job.booking.id,
+                buddyName: job.booking.user.name,
+            });
+        }
+    };
+
+    const handleChatCustomer = () => {
+        if (job) {
+            navigation.navigate('Chat', {
+                bookingId: job.booking.id,
+                buddyName: job.booking.user.name,
+            });
         }
     };
 
@@ -122,7 +133,7 @@ export default function JobInProgressScreen() {
         serviceName: getDisplayTitle(job.booking),
         customerName: job.booking?.user?.name,
         customerPhone: job.booking?.user?.phone,
-        address: getBuddyAddress(job.booking?.address),
+        address: job.booking?.address?.formattedAddress || getBuddyAddress(job.booking?.address),
         totalAmount: job.booking?.employeePayout,
         durationMins: job.booking?.service?.durationMins,
     } : activeJob ? {
@@ -232,9 +243,14 @@ export default function JobInProgressScreen() {
                                 <Text style={styles.detailLabel}>Customer</Text>
                                 <Text style={styles.detailValue}>{displayData.customerName}</Text>
                             </View>
-                            <TouchableOpacity style={styles.callButton} onPress={handleCallCustomer}>
-                                <MaterialCommunityIcons name="phone" size={20} color="#fff" />
-                            </TouchableOpacity>
+                            <View style={{ flexDirection: 'row', gap: 10 }}>
+                                <TouchableOpacity style={styles.chatButton} onPress={handleChatCustomer}>
+                                    <MaterialCommunityIcons name="chat" size={20} color="#fff" />
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.callButton} onPress={handleCallCustomer}>
+                                    <MaterialCommunityIcons name="phone" size={20} color="#fff" />
+                                </TouchableOpacity>
+                            </View>
                         </View>
 
                         {/* Address */}
@@ -453,6 +469,14 @@ const styles = StyleSheet.create({
         height: 44,
         borderRadius: 22,
         backgroundColor: '#4CAF50',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    chatButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: COLORS.primary,
         justifyContent: 'center',
         alignItems: 'center',
     },

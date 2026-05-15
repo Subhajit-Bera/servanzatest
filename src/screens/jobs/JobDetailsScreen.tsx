@@ -8,8 +8,7 @@ import {
     ActivityIndicator,
     Alert,
     Linking,
-} from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { useRoute, useNavigation, CommonActions } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { buddyApi } from '../../api/client';
@@ -48,19 +47,29 @@ export default function JobDetailsScreen() {
         
         const now = new Date().getTime();
 
-        // If completed, allow actions for up to 12 hours after completion
-        if (status === 'COMPLETED') {
-            if (!completedAt) return false;
-            const completed = new Date(completedAt).getTime();
-            const twelveHoursMs = 12 * 60 * 60 * 1000;
-            return now <= (completed + twelveHoursMs);
-        }
+        // If completed, actions (like start job) are no longer allowed
+        if (status === 'COMPLETED') return false;
 
         // Otherwise, allow starting 20 mins before scheduled start
-        if (!scheduledStart) return false;
+        if (!scheduledStart) return true; // If no schedule, allow
         const scheduled = new Date(scheduledStart).getTime();
         const minActionTime = scheduled - (20 * 60 * 1000); // 20 mins before
         return now >= minActionTime;
+    };
+
+    const getCommunicationAccess = (scheduledStart: string, status: string, completedAt?: string) => {
+        const canAct = canTakeAction(scheduledStart, status, completedAt);
+        const canCall = canAct && !['COMPLETED', 'CANCELLED'].includes(status);
+        
+        let canChat = canCall;
+        if (status === 'COMPLETED' && completedAt) {
+            const now = new Date().getTime();
+            const completed = new Date(completedAt).getTime();
+            const twelveHoursMs = 12 * 60 * 60 * 1000;
+            canChat = now <= (completed + twelveHoursMs);
+        }
+        
+        return { canCall, canChat };
     };
 
     const getTimeUntilAction = (scheduledStart: string): string => {
@@ -92,21 +101,33 @@ export default function JobDetailsScreen() {
     };
 
     const handleChat = () => {
+        const { canChat } = getCommunicationAccess(job?.booking?.scheduledStart, job?.status, job?.booking?.completedAt);
+        if (!canChat) {
+            Alert.alert('Chat Unavailable', 'Chat is only available for 12 hours after completion.');
+            return;
+        }
+
         const booking = job?.booking;
         if (booking) {
             navigation.navigate('Chat', {
                 bookingId: booking.id,
-                customerName: booking.user?.name || 'Customer',
+                buddyName: booking.user?.name || 'Customer',
             });
         }
     };
 
     const handleCall = () => {
+        const { canCall } = getCommunicationAccess(job?.booking?.scheduledStart, job?.status, job?.booking?.completedAt);
+        if (!canCall) {
+            Alert.alert('Call Unavailable', 'Calling is only available while the job is active.');
+            return;
+        }
+
         const booking = job?.booking;
         if (booking) {
             navigation.navigate('VoiceCall', {
                 bookingId: booking.id,
-                customerName: booking.user?.name || 'Customer',
+                buddyName: booking.user?.name || 'Customer',
             });
         }
     };
@@ -227,6 +248,7 @@ export default function JobDetailsScreen() {
     const isActive = ['ACCEPTED', 'ON_WAY', 'ARRIVED', 'IN_PROGRESS'].includes(status);
     const actionsEnabled = canTakeAction(scheduledStart, status, booking.completedAt);
     const timeUntilAction = getTimeUntilAction(scheduledStart);
+    const { canCall, canChat } = getCommunicationAccess(scheduledStart, status, booking.completedAt);
 
     // Bottom button label based on status
     const getBottomButtonLabel = () => {
@@ -253,10 +275,11 @@ export default function JobDetailsScreen() {
                 <TouchableOpacity 
                     style={styles.backButton} 
                     onPress={() => {
-                        if (navigation.canGoBack()) {
+                        const state = navigation.getState();
+                        if (state?.routes?.length > 1) {
                             navigation.goBack();
                         } else {
-                            navigation.navigate('Jobs');
+                            navigation.dispatch(CommonActions.navigate({ name: 'Jobs' }));
                         }
                     }}
                 >
@@ -339,25 +362,23 @@ export default function JobDetailsScreen() {
                         </View>
                         <View style={styles.commButtons}>
                             <TouchableOpacity
-                                style={[styles.commButton, !actionsEnabled && styles.commButtonDisabled]}
+                                style={[styles.commButton, !canChat && styles.commButtonDisabled]}
                                 onPress={handleChat}
-                                disabled={!actionsEnabled}
                             >
                                 <MaterialCommunityIcons
                                     name="message-text-outline"
                                     size={20}
-                                    color={actionsEnabled ? COLORS.primary : COLORS.mediumGray}
+                                    color={canChat ? COLORS.primary : COLORS.mediumGray}
                                 />
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={[styles.commButton, !actionsEnabled && styles.commButtonDisabled]}
+                                style={[styles.commButton, !canCall && styles.commButtonDisabled]}
                                 onPress={handleCall}
-                                disabled={!actionsEnabled}
                             >
                                 <MaterialCommunityIcons
                                     name="phone-outline"
                                     size={20}
-                                    color={actionsEnabled ? COLORS.primary : COLORS.mediumGray}
+                                    color={canCall ? COLORS.primary : COLORS.mediumGray}
                                 />
                             </TouchableOpacity>
                         </View>

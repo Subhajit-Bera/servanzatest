@@ -11,6 +11,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getBookingItems, getDisplayTitle, getBuddyAddress } from '../../utils/bookingHelpers';
 import { RootState } from '../../store';
 import { useNotifications } from '../../context/NotificationContext';
+import { CommonActions } from '@react-navigation/native';
 
 type FilterType = 'TODAY' | 'UPCOMING' | 'COMPLETED' | 'CANCELLED';
 
@@ -97,11 +98,16 @@ export default function JobsListScreen() {
   const queryClient = useQueryClient();
 
   const { profile } = useSelector((state: RootState) => state.buddy);
+  const { user } = useSelector((state: RootState) => state.auth);
   const { unreadCount } = useNotifications();
 
-  const buddyName = profile?.user?.name || profile?.name || 'Buddy';
-  const rawImage = profile?.user?.profileImage || profile?.profileImage;
+  const buddyName = user?.name || profile?.user?.name || profile?.name || 'Buddy';
+  const rawImage = user?.profileImage || profile?.user?.profileImage || profile?.profileImage;
   const buddyImage = (rawImage && rawImage.startsWith('http')) ? { uri: rawImage } : null;
+
+  const handleNotificationPress = () => {
+    navigation.dispatch(CommonActions.navigate({ name: 'Notifications' }));
+  };
 
   // Get initial filter from route params (defaults to 'TODAY')
   const initialFilter = route.params?.initialFilter || 'TODAY';
@@ -378,7 +384,7 @@ export default function JobsListScreen() {
           )}
           <Text style={styles.headerBrand}>{buddyName}</Text>
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.bellContainer}>
+        <TouchableOpacity onPress={handleNotificationPress} style={styles.bellContainer}>
           <MaterialCommunityIcons name="bell-outline" size={26} color={COLORS.charcoal} />
           {unreadCount > 0 && <View style={styles.notificationDot} />}
         </TouchableOpacity>
