@@ -250,7 +250,16 @@ export default function JobDetailsScreen() {
         <View style={[styles.container, { paddingTop: insets.top }]}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+                <TouchableOpacity 
+                    style={styles.backButton} 
+                    onPress={() => {
+                        if (navigation.canGoBack()) {
+                            navigation.goBack();
+                        } else {
+                            navigation.navigate('Jobs');
+                        }
+                    }}
+                >
                     <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.charcoal} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Job Details</Text>

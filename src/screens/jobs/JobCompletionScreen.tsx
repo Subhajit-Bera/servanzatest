@@ -95,17 +95,10 @@ export default function JobCompletionScreen() {
     };
 
     const handleDone = () => {
-        // Reset navigation state to clear the Home stack (removes JobCompletion, JobInProgress, etc.)
-        // This prevents stale job screens from appearing when clicking Home tab
-        navigation.reset({
-            index: 0,
-            routes: [
-                {
-                    name: 'Jobs',
-                    params: { initialFilter: 'TODAY', refreshKey: Date.now() }
-                }
-            ],
-        });
+        // Reset the DashboardStack to its root so it doesn't show the completion screen again
+        navigation.navigate('Home', { screen: 'DashboardHome' });
+        // Then switch to the Jobs tab
+        navigation.navigate('Jobs', { initialFilter: 'TODAY', refreshKey: Date.now() });
     };
 
     // Payment Accepted Step
@@ -235,7 +228,7 @@ export default function JobCompletionScreen() {
                 <View style={styles.header}>
                     <TouchableOpacity
                         style={styles.backButton}
-                        onPress={() => step === 'otp' ? setStep('payment') : navigation.goBack()}
+                        onPress={() => step === 'otp' ? setStep('payment') : (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Jobs'))}
                     >
                         <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.charcoal} />
                     </TouchableOpacity>

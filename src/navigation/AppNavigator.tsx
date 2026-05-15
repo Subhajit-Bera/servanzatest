@@ -36,7 +36,6 @@ function DashboardStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="DashboardHome" component={HomeScreen} />
-      <Stack.Screen name="Notifications" component={NotificationScreen} />
       <Stack.Screen name="JobDetails" component={JobExecutionScreen} />
       <Stack.Screen
         name="JobTracking"
@@ -159,6 +158,7 @@ export default function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen name="Notifications" component={NotificationScreen} />
       <Stack.Screen 
         name="Chat" 
         component={ChatScreen} 

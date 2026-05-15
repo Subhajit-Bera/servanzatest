@@ -152,7 +152,13 @@ export default function JobInProgressScreen() {
             <View style={styles.header}>
                 <TouchableOpacity
                     style={styles.backButton}
-                    onPress={() => navigation.goBack()}
+                    onPress={() => {
+                        if (navigation.canGoBack()) {
+                            navigation.goBack();
+                        } else {
+                            navigation.navigate('Jobs');
+                        }
+                    }}
                 >
                     <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.charcoal} />
                 </TouchableOpacity>

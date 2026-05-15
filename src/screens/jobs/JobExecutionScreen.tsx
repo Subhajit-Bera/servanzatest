@@ -244,7 +244,7 @@ export default function JobExecutionScreen() {
       <View style={styles.center}>
         <MaterialCommunityIcons name="alert-circle" size={60} color={COLORS.mediumGray} />
         <Text style={{ marginTop: 20, color: COLORS.mediumGray }}>Job not found</Text>
-        <Button mode="outlined" onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
+        <Button mode="outlined" onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Jobs')} style={{ marginTop: 20 }}>
           Go Back
         </Button>
       </View>
@@ -280,7 +280,7 @@ export default function JobExecutionScreen() {
             iconColor={COLORS.charcoal}
             size={20}
             style={styles.backBtn}
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Jobs')}
           />
         </View>
 
@@ -359,7 +359,7 @@ export default function JobExecutionScreen() {
           iconColor={COLORS.charcoal}
           size={20}
           style={styles.backBtn}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Jobs')}
         />
       </View>
 

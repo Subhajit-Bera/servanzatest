@@ -1,13 +1,16 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Alert, ScrollView } from 'react-native';
-import { Searchbar, Card, Badge, ActivityIndicator } from 'react-native-paper';
+import { Searchbar, Card, Badge, ActivityIndicator, Avatar } from 'react-native-paper';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 import { buddyApi } from '../../api/client';
 import { COLORS, SHADOWS } from '../../config/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getBookingItems, getDisplayTitle, getBuddyAddress } from '../../utils/bookingHelpers';
+import { RootState } from '../../store';
+import { useNotifications } from '../../context/NotificationContext';
 
 type FilterType = 'TODAY' | 'UPCOMING' | 'COMPLETED' | 'CANCELLED';
 
@@ -92,6 +95,13 @@ export default function JobsListScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const queryClient = useQueryClient();
+
+  const { profile } = useSelector((state: RootState) => state.buddy);
+  const { unreadCount } = useNotifications();
+
+  const buddyName = profile?.user?.name || profile?.name || 'Buddy';
+  const rawImage = profile?.user?.profileImage || profile?.profileImage;
+  const buddyImage = (rawImage && rawImage.startsWith('http')) ? { uri: rawImage } : null;
 
   // Get initial filter from route params (defaults to 'TODAY')
   const initialFilter = route.params?.initialFilter || 'TODAY';
@@ -360,16 +370,21 @@ export default function JobsListScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.screenTitle}>My Jobs</Text>
-        <View style={styles.headerRight}>
-          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.bellContainer}>
-            <MaterialCommunityIcons name="bell-outline" size={26} color={COLORS.charcoal} />
-            {/* If you have unreadCount from context, you can add the dot here */}
-          </TouchableOpacity>
-          {/* Using a generic avatar icon as placeholder, since we don't fetch profile here directly */}
-          <MaterialCommunityIcons name="account-circle" size={32} color={COLORS.mediumGray} />
+        <View style={styles.headerLeft}>
+          {buddyImage ? (
+            <Avatar.Image size={36} source={buddyImage} style={{ backgroundColor: COLORS.offWhite }} />
+          ) : (
+            <Avatar.Text size={36} label={buddyName.substring(0, 2).toUpperCase()} style={{ backgroundColor: COLORS.primary }} />
+          )}
+          <Text style={styles.headerBrand}>{buddyName}</Text>
         </View>
+        <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.bellContainer}>
+          <MaterialCommunityIcons name="bell-outline" size={26} color={COLORS.charcoal} />
+          {unreadCount > 0 && <View style={styles.notificationDot} />}
+        </TouchableOpacity>
       </View>
+
+      <Text style={styles.pageTitle}>My Jobs</Text>
 
       <Searchbar
         placeholder="Search jobs..."
@@ -441,18 +456,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
-  screenTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#2D6A4F', // Dark green header
-  },
-  headerRight: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+  },
+  headerBrand: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.charcoal,
+    marginLeft: 10,
   },
   bellContainer: {
+    position: 'relative',
     padding: 4,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 3,
+    right: 3,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: COLORS.error,
+    borderWidth: 1.5,
+    borderColor: '#F8F9FA', // matches container bg
+  },
+  pageTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#2D6A4F',
+    marginBottom: 20,
+    paddingHorizontal: 20,
   },
   searchBar: {
     marginHorizontal: 20,

@@ -48,7 +48,7 @@ export default function EarningsScreen() {
             ) : (
               <Avatar.Text size={40} label={buddyName.substring(0, 2).toUpperCase()} style={{ backgroundColor: COLORS.primary }} />
             )}
-            <Text style={styles.headerBrand}>Servanza Buddy</Text>
+            <Text style={styles.headerBrand}>{buddyName}</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.bellContainer}>
             <MaterialCommunityIcons name="bell-outline" size={26} color={COLORS.charcoal} />
