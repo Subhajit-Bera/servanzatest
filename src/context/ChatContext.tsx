@@ -109,19 +109,27 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         if (activeChatBookingId === bookingId) return;
 
         // Leave previous
-        if (activeChatBookingId && socket.connected) {
+        if (activeChatBookingId && socket?.connected) {
             socket.emit('chat:leave', { bookingId: activeChatBookingId });
         }
 
         setActiveChatBookingId(bookingId);
 
         // Join new
-        if (bookingId && socket.connected) {
+        if (bookingId && socket?.connected) {
             socket.emit('chat:join', { bookingId });
             // Mark as read immediately when opening
             socket.emit('chat:read', { bookingId });
         }
     }, [activeChatBookingId, socket]);
+
+    // Ensure we join the room if socket connects *after* the screen mounts
+    useEffect(() => {
+        if (activeChatBookingId && socket?.connected) {
+            socket.emit('chat:join', { bookingId: activeChatBookingId });
+            socket.emit('chat:read', { bookingId: activeChatBookingId });
+        }
+    }, [activeChatBookingId, socket?.connected]);
 
     const sendMessage = useCallback((bookingId: string, content: string) => {
         if (!socket.connected || !content.trim()) return;

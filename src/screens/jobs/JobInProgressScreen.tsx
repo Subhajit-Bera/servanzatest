@@ -114,7 +114,7 @@ export default function JobInProgressScreen() {
         if (job) {
             navigation.navigate('VoiceCall', {
                 bookingId: job.booking.id,
-                buddyName: job.booking.user.name,
+                customerName: job.booking.user.name,
             });
         }
     };
@@ -123,7 +123,7 @@ export default function JobInProgressScreen() {
         if (job) {
             navigation.navigate('Chat', {
                 bookingId: job.booking.id,
-                buddyName: job.booking.user.name,
+                customerName: job.booking.user.name,
             });
         }
     };

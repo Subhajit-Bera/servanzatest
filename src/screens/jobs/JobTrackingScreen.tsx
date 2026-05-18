@@ -336,7 +336,7 @@ export default function JobTrackingScreen() {
         if (job) {
             navigation.navigate('VoiceCall', {
                 bookingId: job.booking.id,
-                buddyName: job.booking.user.name, // The user's name acts as buddyName here for the VoiceCall component logic
+                customerName: job.booking.user.name,
             });
         }
     };
@@ -345,7 +345,7 @@ export default function JobTrackingScreen() {
         if (job) {
             navigation.navigate('Chat', {
                 bookingId: job.booking.id,
-                buddyName: job.booking.user.name,
+                customerName: job.booking.user.name,
             });
         }
     };

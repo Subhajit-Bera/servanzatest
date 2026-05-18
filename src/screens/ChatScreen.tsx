@@ -83,7 +83,7 @@ const ChatScreen = () => {
                     <View style={styles.avatarContainer}>
                         {showAvatar ? (
                             <View style={styles.avatarPlaceholder}>
-                                <Text style={styles.avatarText}>{item.sender?.name?.charAt(0) || 'C'}</Text>
+                                <Text style={styles.avatarText}>{item.sender?.name?.charAt(0) || customerName?.charAt(0) || 'C'}</Text>
                             </View>
                         ) : null}
                     </View>

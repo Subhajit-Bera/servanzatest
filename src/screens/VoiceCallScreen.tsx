@@ -4,8 +4,8 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
-    SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -57,7 +57,9 @@ const VoiceCallScreen = () => {
     useEffect(() => {
         if (callState === 'ended' || callState === 'idle') {
             if (!isIncoming && callState === 'ended') {
-                navigation.goBack();
+                if (navigation?.canGoBack?.()) {
+                    navigation.goBack();
+                }
             }
         }
     }, [callState, isIncoming, navigation]);
@@ -70,7 +72,9 @@ const VoiceCallScreen = () => {
 
     const handleEndCall = () => {
         endCall();
-        navigation.goBack();
+        if (navigation?.canGoBack?.()) {
+            navigation.goBack();
+        }
     };
 
     const getStatusText = () => {

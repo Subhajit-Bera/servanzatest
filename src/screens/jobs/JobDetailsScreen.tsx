@@ -8,6 +8,7 @@ import {
     ActivityIndicator,
     Alert,
     Linking,
+} from 'react-native';
 import { useRoute, useNavigation, CommonActions } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -59,14 +60,16 @@ export default function JobDetailsScreen() {
 
     const getCommunicationAccess = (scheduledStart: string, status: string, completedAt?: string) => {
         const canAct = canTakeAction(scheduledStart, status, completedAt);
-        const canCall = canAct && !['COMPLETED', 'CANCELLED'].includes(status);
-        
+        let canCall = canAct && !['COMPLETED', 'CANCELLED'].includes(status);
         let canChat = canCall;
+        
         if (status === 'COMPLETED' && completedAt) {
             const now = new Date().getTime();
             const completed = new Date(completedAt).getTime();
             const twelveHoursMs = 12 * 60 * 60 * 1000;
-            canChat = now <= (completed + twelveHoursMs);
+            const within12Hours = now <= (completed + twelveHoursMs);
+            canCall = within12Hours;
+            canChat = within12Hours;
         }
         
         return { canCall, canChat };
@@ -103,7 +106,13 @@ export default function JobDetailsScreen() {
     const handleChat = () => {
         const { canChat } = getCommunicationAccess(job?.booking?.scheduledStart, job?.status, job?.booking?.completedAt);
         if (!canChat) {
-            Alert.alert('Chat Unavailable', 'Chat is only available for 12 hours after completion.');
+            if (job?.status === 'ASSIGNED') {
+                Alert.alert('Chat Unavailable', 'You will be able to Chat after starting navigation.');
+            } else if (job?.status === 'COMPLETED' || job?.status === 'CANCELLED') {
+                Alert.alert('Chat Unavailable', 'Chat is only available for 12 hours after completion.');
+            } else {
+                Alert.alert('Chat Unavailable', 'Chat is not available for this job.');
+            }
             return;
         }
 
@@ -111,7 +120,7 @@ export default function JobDetailsScreen() {
         if (booking) {
             navigation.navigate('Chat', {
                 bookingId: booking.id,
-                buddyName: booking.user?.name || 'Customer',
+                customerName: booking.user?.name || 'Customer',
             });
         }
     };
@@ -119,7 +128,15 @@ export default function JobDetailsScreen() {
     const handleCall = () => {
         const { canCall } = getCommunicationAccess(job?.booking?.scheduledStart, job?.status, job?.booking?.completedAt);
         if (!canCall) {
-            Alert.alert('Call Unavailable', 'Calling is only available while the job is active.');
+            if (job?.status === 'ASSIGNED') {
+                Alert.alert('Call Unavailable', 'You will be able to call after starting navigation.');
+            } else if (job?.status === 'COMPLETED') {
+                Alert.alert('Call Unavailable', 'Calling is only available for 12 hours after completion.');
+            } else if (job?.status === 'CANCELLED') {
+                Alert.alert('Call Unavailable', 'Calling is not available for cancelled jobs.');
+            } else {
+                Alert.alert('Call Unavailable', 'Calling is not available for this job.');
+            }
             return;
         }
 
@@ -127,7 +144,7 @@ export default function JobDetailsScreen() {
         if (booking) {
             navigation.navigate('VoiceCall', {
                 bookingId: booking.id,
-                buddyName: booking.user?.name || 'Customer',
+                customerName: booking.user?.name || 'Customer',
             });
         }
     };
