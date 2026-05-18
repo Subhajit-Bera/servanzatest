@@ -24,6 +24,7 @@ type NotificationType =
   | 'booking-completed'
   | 'booking-cancelled'
   | 'payment-received'
+  | 'chat-message'
   | 'general';
 
 // 2. Handle Navigation based on Payload
@@ -64,7 +65,16 @@ const handleNotificationNavigation = (remoteMessage: FirebaseMessagingTypes.Remo
         message: remoteMessage.data.message || 'A booking has been cancelled by the customer.',
       });
       // Navigate to Dashboard or History
+      // Navigate to Dashboard or History
       navigate('Home');
+      break;
+
+    case 'chat-message':
+      // Navigate to Chat
+      navigate('Chat', {
+        bookingId: remoteMessage.data.bookingId,
+        customerName: remoteMessage.data.customerName || 'Customer',
+      });
       break;
 
     default:
@@ -127,6 +137,13 @@ export function NotificationListener() {
     // For buddy-assignment, socket handles the popup - don't do anything here
     if (remoteMessage.data?.type === 'buddy-assignment') {
       console.log('[FCM] buddy-assignment - socket handles popup, skipping');
+      return;
+    }
+
+    if (remoteMessage.data?.type === 'chat-message') {
+      // ChatContext handles foreground chat messages
+      // We can optionally persist it here if they aren't on the chat screen,
+      // but ChatContext handles that logic.
       return;
     }
 
@@ -232,6 +249,18 @@ export const backgroundMessageHandler = async (remoteMessage: FirebaseMessagingT
           bookingId: data.bookingId,
           serviceTitle: data.serviceTitle || 'Booking',
           message: data.message || 'A booking has been cancelled by the customer.',
+        },
+      );
+    } else if (type === 'chat-message') {
+      await persistNotificationToStorage(
+        'chat-message',
+        `New Message from ${data.customerName || 'Customer'}`,
+        String(data.content || 'Tap to view'),
+        {
+          bookingId: data.bookingId,
+          customerName: data.customerName || 'Customer',
+          messageId: data.messageId,
+          content: data.content,
         },
       );
     } else {

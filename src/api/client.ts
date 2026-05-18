@@ -284,6 +284,9 @@ export const buddyApi = {
   getEarningsSummary: () => apiClient.get('/buddies/earnings/summary'),
   getReviews: (page = 1, limit = 10) => apiClient.get('/buddies/reviews', { params: { page, limit } }),
 
+  // Chat & Communication
+  getCommunicationAccess: (bookingId: string) => apiClient.get(`/bookings/${bookingId}/communication-access`),
+
   // Job Completion OTP
   sendCompletionOTP: (assignmentId: string) => apiClient.post(`/buddies/jobs/${assignmentId}/send-otp`),
   verifyCompletionOTP: (assignmentId: string, otp: string) => apiClient.post(`/buddies/jobs/${assignmentId}/verify-otp`, { otp }),

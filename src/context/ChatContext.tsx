@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { useSocket } from './SocketContext';
 import { useAppSelector } from '../store/hooks';
 import { WEBRTC_CONFIG } from '../config/constants';
+import { Alert, ToastAndroid, Platform } from 'react-native';
 import InCallManager from 'react-native-incall-manager';
 import apiClient from '../api/client';
 import { RTCPeerConnection, RTCIceCandidate, RTCSessionDescription, mediaDevices } from 'react-native-webrtc';
@@ -353,6 +354,11 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         const handleNewMessage = (data: any) => {
             // Notification-only style event if we aren't in the room
             // Real message will come through handleMessage if in room
+            if (activeChatBookingId !== data.bookingId) {
+                if (Platform.OS === 'android') {
+                    ToastAndroid.show(`New message from ${data.senderName || 'Customer'}`, ToastAndroid.SHORT);
+                }
+            }
         };
 
         const handleReadReceipt = (data: any) => {

@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { notificationEvents } from '../utils/notification';
 
 // Notification Types
-export type NotificationType = 'job-assignment' | 'booking-cancelled';
+export type NotificationType = 'job-assignment' | 'booking-cancelled' | 'chat-message';
 
 export interface StoredNotification {
     id: string;

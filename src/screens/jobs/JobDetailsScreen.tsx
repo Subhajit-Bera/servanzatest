@@ -58,14 +58,20 @@ export default function JobDetailsScreen() {
         return now >= minActionTime;
     };
 
-    const getCommunicationAccess = (scheduledStart: string, status: string, completedAt?: string) => {
-        const canAct = canTakeAction(scheduledStart, status, completedAt);
+    const getCommunicationAccess = () => {
+        if (job?.booking?.communicationAccess) {
+            return job.booking.communicationAccess;
+        }
+        
+        // Fallback (should not be reached if backend is updated)
+        const status = job?.status;
+        const canAct = canTakeAction(job?.booking?.scheduledStart, status, job?.booking?.completedAt);
         let canCall = canAct && !['COMPLETED', 'CANCELLED'].includes(status);
         let canChat = canCall;
         
-        if (status === 'COMPLETED' && completedAt) {
+        if (status === 'COMPLETED' && job?.booking?.completedAt) {
             const now = new Date().getTime();
-            const completed = new Date(completedAt).getTime();
+            const completed = new Date(job?.booking?.completedAt).getTime();
             const twelveHoursMs = 12 * 60 * 60 * 1000;
             const within12Hours = now <= (completed + twelveHoursMs);
             canCall = within12Hours;
@@ -104,9 +110,11 @@ export default function JobDetailsScreen() {
     };
 
     const handleChat = () => {
-        const { canChat } = getCommunicationAccess(job?.booking?.scheduledStart, job?.status, job?.booking?.completedAt);
-        if (!canChat) {
-            if (job?.status === 'ASSIGNED') {
+        const caps = getCommunicationAccess();
+        if (!caps.canChat) {
+            if (caps.chatReason) {
+                Alert.alert('Chat Unavailable', caps.chatReason);
+            } else if (job?.status === 'ASSIGNED') {
                 Alert.alert('Chat Unavailable', 'You will be able to Chat after starting navigation.');
             } else if (job?.status === 'COMPLETED' || job?.status === 'CANCELLED') {
                 Alert.alert('Chat Unavailable', 'Chat is only available for 12 hours after completion.');
@@ -126,9 +134,11 @@ export default function JobDetailsScreen() {
     };
 
     const handleCall = () => {
-        const { canCall } = getCommunicationAccess(job?.booking?.scheduledStart, job?.status, job?.booking?.completedAt);
-        if (!canCall) {
-            if (job?.status === 'ASSIGNED') {
+        const caps = getCommunicationAccess();
+        if (!caps.canCall) {
+            if (caps.callReason) {
+                Alert.alert('Call Unavailable', caps.callReason);
+            } else if (job?.status === 'ASSIGNED') {
                 Alert.alert('Call Unavailable', 'You will be able to call after starting navigation.');
             } else if (job?.status === 'COMPLETED') {
                 Alert.alert('Call Unavailable', 'Calling is only available for 12 hours after completion.');
@@ -265,7 +275,7 @@ export default function JobDetailsScreen() {
     const isActive = ['ACCEPTED', 'ON_WAY', 'ARRIVED', 'IN_PROGRESS'].includes(status);
     const actionsEnabled = canTakeAction(scheduledStart, status, booking.completedAt);
     const timeUntilAction = getTimeUntilAction(scheduledStart);
-    const { canCall, canChat } = getCommunicationAccess(scheduledStart, status, booking.completedAt);
+    const { canCall, canChat } = getCommunicationAccess();
 
     // Bottom button label based on status
     const getBottomButtonLabel = () => {

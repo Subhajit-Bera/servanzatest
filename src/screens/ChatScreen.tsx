@@ -17,6 +17,7 @@ import dayjs from 'dayjs';
 import { useChat, ChatMessage } from '../context/ChatContext';
 import { useAppSelector } from '../store/hooks';
 import { COLORS } from '../config/theme';
+import { buddyApi } from '../api/client';
 
 type RouteParams = {
     params: {
@@ -46,9 +47,26 @@ const ChatScreen = () => {
     const flatListRef = useRef<FlatList>(null);
 
     const chatMessages = messages[bookingId] || [];
+    const [canCall, setCanCall] = useState(false);
+    const [canChat, setCanChat] = useState(false);
+    const [accessReason, setAccessReason] = useState<string | null>(null);
 
     useEffect(() => {
         setActiveChat(bookingId);
+        
+        // Fetch communication capabilities
+        buddyApi.getCommunicationAccess(bookingId).then((res) => {
+            if (res.data?.success) {
+                setCanCall(res.data.data.canCall);
+                setCanChat(res.data.data.canChat);
+                if (!res.data.data.canChat) {
+                    setAccessReason(res.data.data.chatReason || 'Chat is not available');
+                }
+            }
+        }).catch(err => {
+            console.error('[ChatScreen] Error fetching communication access:', err);
+        });
+
         return () => setActiveChat(null);
     }, [bookingId, setActiveChat]);
 
@@ -121,12 +139,18 @@ const ChatScreen = () => {
                 <View style={styles.headerTitleContainer}>
                     <Text style={styles.headerTitle}>{customerName}</Text>
                 </View>
-                <TouchableOpacity 
-                    onPress={() => navigation.navigate('VoiceCall', { bookingId, customerName })} 
-                    style={styles.callButton}
-                >
-                    <Ionicons name="call" size={22} color={COLORS.primary} />
-                </TouchableOpacity>
+                {canCall ? (
+                    <TouchableOpacity 
+                        onPress={() => navigation.navigate('VoiceCall', { bookingId, customerName })} 
+                        style={styles.callButton}
+                    >
+                        <Ionicons name="call" size={22} color={COLORS.primary} />
+                    </TouchableOpacity>
+                ) : (
+                    <View style={[styles.callButton, { opacity: 0.3 }]}>
+                        <Ionicons name="call" size={22} color={COLORS.mediumGray} />
+                    </View>
+                )}
             </View>
 
             {/* Chat Area */}
@@ -152,23 +176,31 @@ const ChatScreen = () => {
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
             >
-                <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 15) }]}>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Type a message..."
-                        value={inputText}
-                        onChangeText={handleTextChange}
-                        multiline
-                        maxLength={500}
-                    />
-                    <TouchableOpacity 
-                        style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]} 
-                        onPress={handleSend}
-                        disabled={!inputText.trim()}
-                    >
-                        <Ionicons name="send" size={20} color="white" />
-                    </TouchableOpacity>
-                </View>
+                {canChat ? (
+                    <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 15) }]}>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Type a message..."
+                            value={inputText}
+                            onChangeText={handleTextChange}
+                            multiline
+                            maxLength={500}
+                        />
+                        <TouchableOpacity 
+                            style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]} 
+                            onPress={handleSend}
+                            disabled={!inputText.trim()}
+                        >
+                            <Ionicons name="send" size={20} color="white" />
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <View style={[styles.inputContainer, { justifyContent: 'center', backgroundColor: '#F5F5F5', paddingBottom: Math.max(insets.bottom, 15) }]}>
+                        <Text style={{ color: COLORS.mediumGray, textAlign: 'center' }}>
+                            {accessReason || 'Chat is not available for this job.'}
+                        </Text>
+                    </View>
+                )}
             </KeyboardAvoidingView>
         </View>
     );

@@ -69,6 +69,19 @@ export default function NotificationScreen() {
         await removeNotification(notification.id);
     };
 
+    const handleOpenChat = async (notification: StoredNotification) => {
+        if (notification.type !== 'chat-message') return;
+
+        const bookingId = notification.data?.bookingId;
+        const customerName = notification.data?.customerName || 'Customer';
+
+        if (bookingId) {
+            navigation.navigate('Chat', { bookingId, customerName });
+            // Optionally remove the notification or keep it and mark as read
+            await removeNotification(notification.id);
+        }
+    };
+
     const handleClearAll = () => {
         Alert.alert(
             'Clear All',
@@ -247,11 +260,59 @@ export default function NotificationScreen() {
         );
     };
 
+    const renderChatNotification = (item: StoredNotification) => {
+        const data = item.data || {};
+        const customerName = data.customerName || 'Customer';
+        const content = data.content || 'Sent a message';
+
+        return (
+            <Surface style={[styles.card, SHADOWS.light]}>
+                <View style={styles.cardHeader}>
+                    <View style={styles.headerLeft}>
+                        <MaterialCommunityIcons name="chat-processing-outline" size={20} color={COLORS.accent} />
+                        <Text style={[styles.headerTitle, { color: COLORS.accent }]}>New Message</Text>
+                    </View>
+                    <Text style={styles.headerTime}>{formatRelativeTime(item.timestamp)}</Text>
+                </View>
+
+                <Divider style={styles.divider} />
+
+                <Text style={styles.serviceTitle}>{customerName}</Text>
+                <View style={styles.infoRow}>
+                    <Text style={styles.addressText} numberOfLines={2}>
+                        {content}
+                    </Text>
+                </View>
+
+                <View style={styles.actionRow}>
+                    <Button
+                        mode="outlined"
+                        onPress={() => handleIgnore(item)}
+                        style={styles.ignoreBtn}
+                        labelStyle={styles.ignoreBtnLabel}
+                    >
+                        Dismiss
+                    </Button>
+                    <Button
+                        mode="contained"
+                        onPress={() => handleOpenChat(item)}
+                        style={[styles.acceptBtn, { backgroundColor: COLORS.accent }]}
+                        labelStyle={styles.acceptBtnLabel}
+                    >
+                        Open Chat
+                    </Button>
+                </View>
+            </Surface>
+        );
+    };
+
     const renderNotification = ({ item }: { item: StoredNotification }) => {
         if (item.type === 'job-assignment') {
             return renderJobNotification(item);
         } else if (item.type === 'booking-cancelled') {
             return renderCancellationNotification(item);
+        } else if (item.type === 'chat-message') {
+            return renderChatNotification(item);
         }
         return null;
     };
