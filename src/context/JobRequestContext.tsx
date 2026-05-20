@@ -158,8 +158,9 @@ export const JobRequestProvider = ({ children }: { children: ReactNode }) => {
         console.log('[JobRequestContext] Setting up socket listeners');
 
         // Listen for new job assignments (socket only - when app is open)
+        // Event name unified with FCM payload data.type
         const handleJobAssigned = (data: any) => {
-            console.log('[JobRequestContext] Socket: job:assigned received', data);
+            console.log('[JobRequestContext] Socket: buddy-assignment received', data);
 
             const jobData: JobAlertData = {
                 assignmentId: data.assignmentId,
@@ -183,8 +184,9 @@ export const JobRequestProvider = ({ children }: { children: ReactNode }) => {
         };
 
         // Listen for job cancelled
+        // Event name unified with FCM payload data.type
         const handleJobCancelled = (data: any) => {
-            console.log('[JobRequestContext] Socket: job:cancelled received', data);
+            console.log('[JobRequestContext] Socket: booking-cancelled received', data);
             // Use Ref to get latest jobs without re-running effect
             const job = jobsRef.current.find((j) => j.bookingId === data.bookingId);
             if (job) {
@@ -192,14 +194,14 @@ export const JobRequestProvider = ({ children }: { children: ReactNode }) => {
             }
         };
 
-        socket.on('job:assigned', handleJobAssigned);
+        socket.on('buddy-assignment', handleJobAssigned);
         socket.on('job:taken', handleJobTaken);
-        socket.on('job:cancelled', handleJobCancelled);
+        socket.on('booking-cancelled', handleJobCancelled);
 
         return () => {
-            socket.off('job:assigned', handleJobAssigned);
+            socket.off('buddy-assignment', handleJobAssigned);
             socket.off('job:taken', handleJobTaken);
-            socket.off('job:cancelled', handleJobCancelled);
+            socket.off('booking-cancelled', handleJobCancelled);
         };
     }, [isAuthenticated, addJobRequest, markJobTaken, removeJob]); // Removed 'jobs' dependency
 

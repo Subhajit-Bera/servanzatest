@@ -23,9 +23,11 @@ export default function NotificationScreen() {
     const {
         notifications,
         markAllAsRead,
-        clearAllNotifications,
-        removeNotification,
-        refreshNotifications
+        markAsRead,
+        refreshNotifications,
+        isLoading,
+        hasMore,
+        loadMore
     } = useNotifications();
 
     const isFocused = useIsFocused();
@@ -39,7 +41,7 @@ export default function NotificationScreen() {
     }, [isFocused]);
 
     const handleAccept = async (notification: StoredNotification) => {
-        if (notification.type !== 'job-assignment') return;
+        if (notification.type !== 'buddy-assignment') return;
 
         const assignmentId = notification.data?.assignmentId;
         if (!assignmentId) {
@@ -51,14 +53,14 @@ export default function NotificationScreen() {
             // Use API for reliable transactional acceptance (catches 409 conflicts)
             await buddyApi.acceptJob(assignmentId);
 
-            // Remove from notification list only on success
-            await removeNotification(notification.id);
+            // Mark as read instead of removing
+            await markAsRead(notification.id);
 
             Alert.alert('Success', 'Job accepted! Check your Active Jobs.');
         } catch (error: any) {
             if (error.response?.status === 409) {
                 Alert.alert('Too Late', error.response?.data?.message || 'This job was accepted by another buddy.');
-                await removeNotification(notification.id); // Remove it since it's gone
+                await markAsRead(notification.id);
             } else {
                 Alert.alert('Error', error.response?.data?.message || 'Failed to accept job');
             }
@@ -66,7 +68,7 @@ export default function NotificationScreen() {
     };
 
     const handleIgnore = async (notification: StoredNotification) => {
-        await removeNotification(notification.id);
+        await markAsRead(notification.id);
     };
 
     const handleOpenChat = async (notification: StoredNotification) => {
@@ -77,21 +79,19 @@ export default function NotificationScreen() {
 
         if (bookingId) {
             navigation.navigate('Chat', { bookingId, customerName });
-            // Optionally remove the notification or keep it and mark as read
-            await removeNotification(notification.id);
+            await markAsRead(notification.id);
         }
     };
 
     const handleClearAll = () => {
         Alert.alert(
-            'Clear All',
-            'Are you sure you want to clear all notifications?',
+            'Mark All as Read',
+            'Are you sure you want to mark all notifications as read?',
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
-                    text: 'Clear All',
-                    style: 'destructive',
-                    onPress: () => clearAllNotifications(),
+                    text: 'Mark All Read',
+                    onPress: () => markAllAsRead(),
                 },
             ]
         );
@@ -154,14 +154,14 @@ export default function NotificationScreen() {
 
 
         return (
-            <Surface style={[styles.card, SHADOWS.light]}>
+            <Surface style={[styles.card, SHADOWS.light, item.isRead && styles.readCard]}>
                 {/* Header with bell icon and time */}
                 <View style={styles.cardHeader}>
                     <View style={styles.headerLeft}>
                         <MaterialCommunityIcons name="bell-ring" size={20} color={COLORS.primary} />
                         <Text style={styles.headerTitle}>New Job Request</Text>
                     </View>
-                    <Text style={styles.headerTime}>{formatRelativeTime(item.timestamp)}</Text>
+                    <Text style={styles.headerTime}>{formatRelativeTime(new Date(item.createdAt).getTime())}</Text>
                 </View>
 
                 <Divider style={styles.divider} />
@@ -233,13 +233,13 @@ export default function NotificationScreen() {
         const message = data.message || 'A booking has been cancelled.';
 
         return (
-            <Surface style={[styles.card, styles.cancelCard, SHADOWS.light]}>
+            <Surface style={[styles.card, styles.cancelCard, SHADOWS.light, item.isRead && styles.readCard]}>
                 <View style={styles.cardHeader}>
                     <View style={styles.headerLeft}>
                         <MaterialCommunityIcons name="briefcase-remove" size={20} color={COLORS.error} />
                         <Text style={[styles.headerTitle, { color: COLORS.error }]}>Booking Cancelled</Text>
                     </View>
-                    <Text style={styles.headerTime}>{formatRelativeTime(item.timestamp)}</Text>
+                    <Text style={styles.headerTime}>{formatRelativeTime(new Date(item.createdAt).getTime())}</Text>
                 </View>
 
                 <Divider style={styles.divider} />
@@ -266,13 +266,13 @@ export default function NotificationScreen() {
         const content = data.content || 'Sent a message';
 
         return (
-            <Surface style={[styles.card, SHADOWS.light]}>
+            <Surface style={[styles.card, SHADOWS.light, item.isRead && styles.readCard]}>
                 <View style={styles.cardHeader}>
                     <View style={styles.headerLeft}>
                         <MaterialCommunityIcons name="chat-processing-outline" size={20} color={COLORS.accent} />
                         <Text style={[styles.headerTitle, { color: COLORS.accent }]}>New Message</Text>
                     </View>
-                    <Text style={styles.headerTime}>{formatRelativeTime(item.timestamp)}</Text>
+                    <Text style={styles.headerTime}>{formatRelativeTime(new Date(item.createdAt).getTime())}</Text>
                 </View>
 
                 <Divider style={styles.divider} />
@@ -307,14 +307,35 @@ export default function NotificationScreen() {
     };
 
     const renderNotification = ({ item }: { item: StoredNotification }) => {
-        if (item.type === 'job-assignment') {
+        if (item.type === 'buddy-assignment') {
             return renderJobNotification(item);
         } else if (item.type === 'booking-cancelled') {
             return renderCancellationNotification(item);
         } else if (item.type === 'chat-message') {
             return renderChatNotification(item);
         }
-        return null;
+        
+        // General Notification Fallback
+        return (
+            <Surface style={[styles.card, SHADOWS.light, item.isRead && styles.readCard]}>
+                <View style={styles.cardHeader}>
+                    <View style={styles.headerLeft}>
+                        <MaterialCommunityIcons name="bell" size={20} color={COLORS.primary} />
+                        <Text style={styles.headerTitle}>{item.title}</Text>
+                    </View>
+                    <Text style={styles.headerTime}>{formatRelativeTime(new Date(item.createdAt).getTime())}</Text>
+                </View>
+                <Divider style={styles.divider} />
+                <Text style={styles.serviceTitle}>{item.body}</Text>
+                {!item.isRead && (
+                    <View style={styles.actionRow}>
+                        <Button mode="outlined" onPress={() => handleIgnore(item)} style={styles.dismissBtn}>
+                            Mark as Read
+                        </Button>
+                    </View>
+                )}
+            </Surface>
+        );
     };
 
     return (
@@ -326,7 +347,7 @@ export default function NotificationScreen() {
                 </TouchableOpacity>
                 <Text style={styles.screenTitle}>Notifications</Text>
                 <TouchableOpacity onPress={handleClearAll} style={styles.clearBtn}>
-                    <Text style={styles.clearBtnText}>Clear All</Text>
+                    <Text style={[styles.clearBtnText, { color: COLORS.primary }]}>Mark All Read</Text>
                 </TouchableOpacity>
             </View>
 
@@ -348,6 +369,10 @@ export default function NotificationScreen() {
                     renderItem={renderNotification}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
+                    onEndReached={loadMore}
+                    onEndReachedThreshold={0.5}
+                    refreshing={isLoading}
+                    onRefresh={() => refreshNotifications(1)}
                 />
             )}
         </SafeAreaView>
@@ -427,6 +452,10 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         borderWidth: 1,
         borderColor: '#E8E8E8',
+    },
+    readCard: {
+        opacity: 0.7,
+        backgroundColor: '#F9FAFB',
     },
     cancelCard: {
         borderLeftWidth: 4,

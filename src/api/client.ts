@@ -298,6 +298,12 @@ export const buddyApi = {
 
   // Training
   selectTrainingStartDate: (trainingStartDate: string) => apiClient.post('/buddies/training/select-date', { trainingStartDate }),
+
+  // Notifications
+  getNotifications: (page = 1, limit = 20) => apiClient.get('/buddies/notifications', { params: { page, limit } }),
+  getUnreadNotificationCount: () => apiClient.get('/buddies/notifications/unread-count'),
+  markAllNotificationsRead: () => apiClient.patch('/buddies/notifications/mark-all-read'),
+  markNotificationRead: (id: string) => apiClient.patch(`/buddies/notifications/${id}/read`),
 };
 
 export default apiClient;

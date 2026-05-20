@@ -20,7 +20,7 @@ const TAB_LABELS: Record<FilterType, string> = {
   TODAY: 'Today',
   UPCOMING: 'Upcoming',
   COMPLETED: 'Completed',
-  CANCELLED: 'Cancelled',
+  CANCELLED: 'Cancelled / Rejected',
 };
 
 // Helper to check if a date is today
@@ -83,10 +83,12 @@ const fetchJobsByFilter = async (filter: FilterType) => {
     filteredJobs = history.filter((j: any) => j.status === 'COMPLETED');
 
   } else {
-    // CANCELLED = Only cancelled jobs from history
+    // CANCELLED = Cancelled or Rejected jobs from history
     const response = await buddyApi.getJobHistory({ page: 1, limit: 50 });
     const history = response.data?.data?.history || [];
-    filteredJobs = history.filter((j: any) => j.booking?.status === 'CANCELLED');
+    filteredJobs = history.filter((j: any) => 
+      j.booking?.status === 'CANCELLED' || j.status === 'REJECTED'
+    );
   }
 
   return filteredJobs;
@@ -363,7 +365,7 @@ export default function JobsListScreen() {
             <View style={styles.completedRow}>
               <MaterialCommunityIcons name="close-circle" size={18} color="#F44336" />
               <Text style={{ color: '#F44336', fontWeight: '600', fontSize: 14 }}>
-                Cancelled
+                {item.status === 'REJECTED' ? 'Rejected' : 'Cancelled'}
               </Text>
             </View>
           )}
