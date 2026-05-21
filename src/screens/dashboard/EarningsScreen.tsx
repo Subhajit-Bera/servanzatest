@@ -11,6 +11,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { useAppSelector } from '../../store/hooks';
 import { Avatar } from 'react-native-paper';
 import { CommonActions } from '@react-navigation/native';
+import EarningsSkeleton from '../../components/skeletons/EarningsSkeleton';
 
 const DARK_GREEN = '#2D6A4F';
 
@@ -39,6 +40,10 @@ export default function EarningsScreen() {
     }
   }, [dispatch, earnings]);
 
+  if (loading && !earnings) {
+    return <EarningsSkeleton />;
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -64,12 +69,17 @@ export default function EarningsScreen() {
 
         <Text style={styles.pageTitle}>My Earnings</Text>
 
-        {/* Total Lifetime Card */}
         <View style={styles.heroCard}>
-          <Text style={styles.heroLabel}>Total Lifetime Earnings</Text>
-          <Text style={styles.heroAmount}>₹{earnings?.totalEarnings || '0'}</Text>
-          <View style={styles.heroPill}>
-            <Text style={styles.heroPillText}>Total Jobs: {earnings?.totalJobs || 0}</Text>
+          <Text style={styles.heroLabel}>Pending Balance</Text>
+          <Text style={styles.heroAmount}>₹{earnings?.pendingAmount || '0'}</Text>
+          
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={styles.heroPill}>
+              <Text style={styles.heroPillText}>Total Earned: ₹{earnings?.totalEarnings || '0'}</Text>
+            </View>
+            <View style={styles.heroPill}>
+              <Text style={styles.heroPillText}>Total Paid: ₹{earnings?.totalPaid || '0'}</Text>
+            </View>
           </View>
         </View>
 

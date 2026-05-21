@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { buddyApi } from '../../api/client';
 import { COLORS, SHADOWS } from '../../config/theme';
 import { getBookingItems, getDisplayTitle, getBuddyAddress } from '../../utils/bookingHelpers';
+import JobDetailsSkeleton from '../../components/skeletons/JobDetailsSkeleton';
 
 export default function JobDetailsScreen() {
     const route = useRoute<any>();
@@ -245,8 +246,8 @@ export default function JobDetailsScreen() {
     // --- Loading state ---
     if (loading || !job) {
         return (
-            <View style={[styles.container, styles.loadingContainer, { paddingTop: insets.top }]}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
+            <View style={[styles.container, { paddingTop: insets.top }]}>
+                <JobDetailsSkeleton />
             </View>
         );
     }

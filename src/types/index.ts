@@ -106,6 +106,8 @@ export interface EarningsPeriod {
 
 export interface EarningsSummary {
   totalEarnings: number;
+  pendingAmount?: number;
+  totalPaid?: number;
   totalJobs: number;
   today: EarningsPeriod;
   thisWeek: EarningsPeriod;

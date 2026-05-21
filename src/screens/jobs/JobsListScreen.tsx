@@ -12,6 +12,7 @@ import { getBookingItems, getDisplayTitle, getBuddyAddress } from '../../utils/b
 import { RootState } from '../../store';
 import { useNotifications } from '../../context/NotificationContext';
 import { CommonActions } from '@react-navigation/native';
+import JobListSkeleton from '../../components/skeletons/JobListSkeleton';
 
 type FilterType = 'TODAY' | 'UPCOMING' | 'COMPLETED' | 'CANCELLED';
 
@@ -429,8 +430,8 @@ export default function JobsListScreen() {
       </View>
 
       {isLoading && !isRefetching && !jobs.length ? (
-        <View style={styles.center}>
-          <ActivityIndicator color="#2D6A4F" size="large" />
+        <View style={{ flex: 1 }}>
+          <JobListSkeleton />
         </View>
       ) : (
         <FlatList

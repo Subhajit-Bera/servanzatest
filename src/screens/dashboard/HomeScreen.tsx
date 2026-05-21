@@ -29,6 +29,7 @@ import { buddyApi } from '../../api/client';
 import { useSocket } from '../../context/SocketContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { getDisplayTitle } from '../../utils/bookingHelpers';
+import HomeScreenSkeleton from '../../components/skeletons/HomeScreenSkeleton';
 
 // Interface for the Job Offer
 interface JobRequest {
@@ -381,6 +382,10 @@ export default function HomeScreen() {
       </View>
     </Modal>
   );
+
+  if (loading && !profile) {
+    return <HomeScreenSkeleton />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
