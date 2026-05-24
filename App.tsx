@@ -48,7 +48,13 @@ const queryClient = new QueryClient({
 
 export default function App() {
 
-  // ... useEffect logic ...
+  useEffect(() => {
+    // Mount global FCM notification listeners
+    const unsubscribe = NotificationListener();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
 
   return (
     <ErrorBoundary>

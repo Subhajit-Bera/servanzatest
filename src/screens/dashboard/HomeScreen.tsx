@@ -9,55 +9,37 @@ import {
   Alert,
   Modal,
   TouchableOpacity,
-  Platform
+  Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
 import { useAppSelector } from '../../store/hooks';
-import { Button, Avatar, Badge, Surface } from 'react-native-paper';
+import { Button, Avatar, Surface } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import * as Location from 'expo-location';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { getMessaging, onMessage, onNotificationOpenedApp, getInitialNotification } from '@react-native-firebase/messaging';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 
 import { COLORS, SHADOWS } from '../../config/theme';
 import { fetchProfile, fetchEarningsSummary, toggleAvailability } from '../../store/slices/buddySlice';
 import { CommonActions } from '@react-navigation/native';
 
-import { requestUserPermission } from '../../utils/notification';
 import { buddyApi } from '../../api/client';
 import { useSocket } from '../../context/SocketContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { getDisplayTitle } from '../../utils/bookingHelpers';
 import HomeScreenSkeleton from '../../components/skeletons/HomeScreenSkeleton';
 
-// Interface for the Job Offer
-interface JobRequest {
-  bookingId: string;
-  assignmentId: string;
-  serviceTitle: string;
-  address: string;
-  distance: string | number;
-  price?: string | number;
-  isImmediate?: boolean;
-}
-
 export default function HomeScreen() {
   const dispatch = useDispatch<any>();
   const navigation = useNavigation<any>();
   const { socket } = useSocket();
 
-  // --- Redux State ---
   const { profile, earnings, isAvailable, activeJob, loading } = useAppSelector((state) => state.buddy);
   const { user } = useAppSelector((state) => state.auth);
 
-  // --- Local State ---
   const [showDateModal, setShowDateModal] = useState(false);
   const [dateSelectionLoading, setDateSelectionLoading] = useState(false);
-
-  // JOB QUEUE: Stores incoming broadcasted jobs (Offers)
-  const [jobRequests, setJobRequests] = useState<JobRequest[]>([]);
-  const [isAccepting, setIsAccepting] = useState(false);
 
   const buddyName = user?.name || profile?.user?.name || profile?.name || 'Buddy';
   const rawImage = user?.profileImage || profile?.user?.profileImage || profile?.profileImage;
@@ -68,53 +50,12 @@ export default function HomeScreen() {
   const isTrainingCompleted = profile?.isTrainingCompleted;
   const verifiedAt = profile?.verifiedAt;
 
-  // Notification badge count
   const { unreadCount } = useNotifications();
 
-  // --- Initialization & Data Loading ---
   const loadData = useCallback(() => {
     dispatch(fetchProfile());
     dispatch(fetchEarningsSummary());
   }, [dispatch]);
-
-  // --- 1. Fetch Existing Offers (Missed Notifications) ---
-  const fetchPendingOffers = async () => {
-    try {
-      // Fetch jobs that are in 'PENDING' state (Offers)
-      const res = await buddyApi.getJobs();
-      // Adjust based on your API response structure (likely res.data.data.jobs)
-      const allJobs = res.data?.data?.jobs || [];
-      // const pendingJobs = res.data?.data?.jobs || [];
-
-      const pendingJobs = allJobs.filter((j: any) => j.status === 'PENDING');
-
-      if (pendingJobs.length > 0) {
-        const mappedRequests: JobRequest[] = pendingJobs.map((job: any) => ({
-          bookingId: job.bookingId,
-          assignmentId: job.id,
-          serviceTitle: getDisplayTitle(job.booking) || 'Service Request',
-          address: job.booking?.address?.formattedAddress || 'Location hidden',
-          distance: job.distanceKm || 0,
-          price: job.booking?.totalAmount,
-          isImmediate: job.booking?.isImmediate
-        }));
-
-        setJobRequests(prev => {
-          // Merge and avoid duplicates
-          const existingIds = new Set(prev.map(p => p.assignmentId));
-          const newOffers = mappedRequests.filter(m => !existingIds.has(m.assignmentId));
-          return [...prev, ...newOffers];
-        });
-      }
-    } catch (error: any) {
-      // Handle 429 silently - the optimized getJobs will handle caching
-      if (error.response?.status === 429) {
-        console.log('[HomeScreen] Rate limited on pending offers, will use cached data');
-      } else {
-        console.log('Error fetching pending offers:', error);
-      }
-    }
-  };
 
   const checkLocationPermission = async () => {
     const { status } = await Location.getForegroundPermissionsAsync();
@@ -125,108 +66,25 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadData();
-    fetchPendingOffers(); // <--- CRITICAL: Check for offers on app open
-    requestUserPermission();
     checkLocationPermission();
   }, [loadData]);
 
-  // --- 2. Notification Listeners (FCM) ---
-  useEffect(() => {
-    const handleRemoteMessage = (remoteMessage: any) => {
-      console.log('FCM Message:', remoteMessage);
-      if (remoteMessage.data?.type === 'buddy-assignment') {
-        const newReq = remoteMessage.data as unknown as JobRequest;
-        setJobRequests(prev => {
-          const exists = prev.some(req => req.assignmentId === newReq.assignmentId);
-          return exists ? prev : [...prev, newReq];
-        });
-      }
-    };
-
-    const unsubscribeFCM = onMessage(getMessaging(), handleRemoteMessage);
-    onNotificationOpenedApp(getMessaging(), handleRemoteMessage);
-    getInitialNotification(getMessaging()).then(msg => {
-      if (msg) handleRemoteMessage(msg);
-    });
-
-    return unsubscribeFCM;
-  }, []);
-
-  // --- 3. Socket Listeners (Real-time Race Condition) ---
-  useEffect(() => {
-    if (!socket) return;
-
-    // A. Job Won (Accepted Successfully)
-    const onAcceptSuccess = (data: any) => {
-      setIsAccepting(false);
-      setJobRequests([]); // Clear requests as we are now busy
-      Alert.alert("Success!", "You have been assigned the job.");
-      loadData(); // Refresh to show "Active Job" card
-    };
-
-    // B. Job Lost (Taken by another buddy)
-    const onJobTaken = (data: { bookingId: string, message?: string }) => {
-      setJobRequests(prev => {
-        const isVisible = prev[0]?.bookingId === data.bookingId;
-        if (isVisible) {
-          Alert.alert("Missed", data.message || "This job was accepted by another buddy.");
-        }
-        return prev.filter(req => req.bookingId !== data.bookingId);
-      });
-      setIsAccepting(false);
-    };
-
-    // C. Error Handling
-    const onError = (err: any) => {
-      setIsAccepting(false);
-      if (err.code === 'JOB_TAKEN') {
-        Alert.alert("Too Late", err.message);
-        setJobRequests(prev => prev.slice(1));
-      } else if (err.type === 'RATE_LIMITED') {
-        // Rate limited - silently reset, user can try again
-        console.warn('[Home] Rate limited on job action');
-      } else {
-        Alert.alert("Error", err.message || "Something went wrong.");
-      }
-    };
-
-    socket.on('job:accept:success', onAcceptSuccess);
-    socket.on('job:taken', onJobTaken);
-    socket.on('error', onError);
-
-    return () => {
-      socket.off('job:accept:success', onAcceptSuccess);
-      socket.off('job:taken', onJobTaken);
-      socket.off('error', onError);
-    };
-  }, [socket, loadData]);
-
-
-  // --- 4. Action Handlers ---
-
+  // --- Action Handlers ---
   const handleToggle = async () => {
     if (!isVerified) return Alert.alert("Verification Pending", "Wait for verification.");
-
-    // Check training completion
     if (!isTrainingCompleted) {
       return Alert.alert("Training Required", "Please complete your training first.");
     }
-
-    // Check job start date
     if (!jobStartDate) {
       return Alert.alert("Not Ready", "Your job start date has not been assigned yet. Please wait for admin to assign it after training.");
     }
-
-    // Check if current date >= job start date
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const startDate = new Date(jobStartDate);
     startDate.setHours(0, 0, 0, 0);
-
     if (today < startDate) {
       return Alert.alert("Not Yet", `Your job start date is ${startDate.toLocaleDateString()}. Please wait until then.`);
     }
-
     if (!isAvailable) {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return Alert.alert("Permission Denied", "Location needed.");
@@ -251,33 +109,9 @@ export default function HomeScreen() {
     }
   };
 
-  const handleAcceptJob = () => {
-    const currentRequest = jobRequests[0];
-    if (!currentRequest) return;
-    setIsAccepting(true);
-    socket.emit('job:accept', { assignmentId: currentRequest.assignmentId });
-  };
-
-  const handleIgnoreJob = () => {
-    const currentRequest = jobRequests[0];
-    if (!currentRequest) return;
-
-    // Optimistic Update
-    setJobRequests(prev => prev.slice(1));
-
-    if (socket && socket.connected) {
-      socket.emit('job:reject', { assignmentId: currentRequest.assignmentId });
-    }
-  };
-
-  // --- 5. Render Components ---
-
-  // const renderJobRequestModal = () => { ... };
-
+  // --- Training Card (preserves all logic) ---
   const renderTrainingCard = () => {
     if (!isVerified) return null;
-
-    // Not started training yet
     if (!trainingStartDate) {
       return (
         <Surface style={[styles.alertCard, SHADOWS.medium]}>
@@ -288,20 +122,13 @@ export default function HomeScreen() {
           <Text style={styles.alertBody}>
             You are verified! Complete your 5-day training to start working.
           </Text>
-          <Button
-            mode="contained"
-            onPress={() => navigation.navigate('TrainingSelection')}
-            style={styles.dateBtn}
-            buttonColor={COLORS.white}
-            textColor={COLORS.primary}
-          >
+          <Button mode="contained" onPress={() => navigation.navigate('TrainingSelection')}
+            style={styles.dateBtn} buttonColor={COLORS.white} textColor={COLORS.primary}>
             Start Training
           </Button>
         </Surface>
       );
     }
-
-    // Training started but not completed
     if (!isTrainingCompleted) {
       return (
         <Surface style={[styles.alertCard, { backgroundColor: COLORS.warning }]}>
@@ -315,52 +142,37 @@ export default function HomeScreen() {
         </Surface>
       );
     }
-
-    // Training completed but no job start date assigned
     if (!jobStartDate) {
       return (
-        <Surface style={[styles.infoCard, SHADOWS.light]}>
-          <View style={styles.alertHeader}>
-            <MaterialCommunityIcons name="clock-outline" size={24} color={COLORS.primary} />
-            <Text style={[styles.alertTitle, { color: COLORS.charcoal }]}>Waiting for Job Start Date</Text>
+        <View style={styles.statusInfoCard}>
+          <View style={styles.statusInfoIcon}>
+            <MaterialCommunityIcons name="clock-outline" size={28} color={COLORS.primary} />
           </View>
-          <Text style={{ color: COLORS.darkGray, marginTop: 5 }}>
-            Training completed! Waiting for admin to assign your job start date.
-          </Text>
-        </Surface>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.statusInfoTitle}>Waiting for Job Start Date</Text>
+            <Text style={styles.statusInfoSub}>Training completed! Waiting for admin to assign your job start date.</Text>
+          </View>
+        </View>
       );
     }
-
-    // Check if job start date is in the future
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const startDate = new Date(jobStartDate);
     startDate.setHours(0, 0, 0, 0);
-
     if (today < startDate) {
       return (
-        <Surface style={[styles.infoCard, SHADOWS.light]}>
-          <View style={styles.alertHeader}>
-            <MaterialCommunityIcons name="calendar-clock" size={24} color={COLORS.primary} />
-            <Text style={[styles.alertTitle, { color: COLORS.charcoal }]}>Ready to Start</Text>
+        <View style={styles.statusInfoCard}>
+          <View style={styles.statusInfoIcon}>
+            <MaterialCommunityIcons name="calendar-clock" size={28} color={COLORS.primary} />
           </View>
-          <Text style={{ color: COLORS.darkGray, marginTop: 5 }}>
-            You can start working on {startDate.toLocaleDateString()}. Get ready!
-          </Text>
-        </Surface>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.statusInfoTitle}>Ready to Start</Text>
+            <Text style={styles.statusInfoSub}>You can start working on {startDate.toLocaleDateString()}. Get ready!</Text>
+          </View>
+        </View>
       );
     }
-
-    // All good - can work
-    return (
-      <Surface style={[styles.infoCard, SHADOWS.light]}>
-        <View style={styles.alertHeader}>
-          <MaterialCommunityIcons name="briefcase-check" size={24} color={COLORS.primary} />
-          <Text style={[styles.alertTitle, { color: COLORS.charcoal }]}>Ready to Work</Text>
-        </View>
-        <Text style={{ color: COLORS.darkGray, marginTop: 5 }}>Good luck! Make sure you are Online to receive jobs.</Text>
-      </Surface>
-    );
+    return null; // Ready to work — shown via Current Status section
   };
 
   const renderDateModal = () => (
@@ -383,51 +195,69 @@ export default function HomeScreen() {
     </Modal>
   );
 
+  // Check if buddy can work (all gates passed)
+  const canWork = isVerified && isTrainingCompleted && jobStartDate && (() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const sd = new Date(jobStartDate); sd.setHours(0, 0, 0, 0);
+    return today >= sd;
+  })();
+
   if (loading && !profile) {
     return <HomeScreenSkeleton />;
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      {/* ─── Header ─── */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           {buddyImage ? (
-            <Avatar.Image size={48} source={buddyImage} style={{ backgroundColor: COLORS.offWhite }} />
+            <Image source={buddyImage} style={styles.avatarImg} />
           ) : (
-            <Avatar.Text size={48} label={buddyName.substring(0, 2).toUpperCase()} style={{ backgroundColor: COLORS.primary }} />
+            <View style={styles.avatarFallback}>
+              <Text style={styles.avatarFallbackText}>{buddyName.substring(0, 2).toUpperCase()}</Text>
+            </View>
+          )}
+          {isVerified && (
+            <View style={styles.avatarBadge}>
+              <Ionicons name="checkmark" size={10} color={COLORS.white} />
+            </View>
           )}
           <View style={styles.headerTextContainer}>
-            <Text style={styles.greeting}>Hello, {buddyName}</Text>
-            <View style={styles.badgeContainer}>
-              {isVerified ? (
-                <View style={styles.verifiedPill}>
-                  <Text style={styles.verifiedPillText}>Verified Partner</Text>
-                </View>
-              ) : (
-                <View style={styles.pendingPill}>
-                  <Text style={styles.pendingPillText}>Verification Pending</Text>
-                </View>
-              )}
-            </View>
+            <Text style={styles.welcomeText}>Welcome back</Text>
+            <Text style={styles.buddyNameText}>{buddyName}</Text>
+            {isVerified ? (
+              <View style={styles.verifiedRow}>
+                <Ionicons name="shield-checkmark" size={14} color={COLORS.primary} />
+                <Text style={styles.verifiedLabel}>VERIFIED PARTNER</Text>
+              </View>
+            ) : (
+              <View style={styles.pendingRow}>
+                <Ionicons name="time-outline" size={14} color={COLORS.warning} />
+                <Text style={styles.pendingLabel}>VERIFICATION PENDING</Text>
+              </View>
+            )}
           </View>
         </View>
         <TouchableOpacity
           onPress={() => navigation.dispatch(CommonActions.navigate({ name: 'Notifications' }))}
           style={styles.bellContainer}
         >
-          <MaterialCommunityIcons name="bell-outline" size={26} color={COLORS.charcoal} />
-          {unreadCount > 0 && (
-            <View style={styles.notificationDot} />
-          )}
+          <Ionicons name="notifications-outline" size={24} color={COLORS.charcoal} />
+          {unreadCount > 0 && <View style={styles.notificationDot} />}
         </TouchableOpacity>
       </View>
 
+      <View style={styles.divider} />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 20 }}
+        overScrollMode="never"
+        bounces={false}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} />}
       >
-        {/* Training / Ready to Work card */}
+        {/* Training / onboarding cards */}
         {renderTrainingCard()}
 
         {/* Verification pending banner */}
@@ -438,37 +268,80 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Online/Offline Toggle */}
-        <View style={[styles.statusCard, isAvailable ? styles.statusActive : styles.statusInactive]}>
-          <View>
-            <Text style={styles.statusTitle}>{isAvailable ? "You are Online" : "You are Offline"}</Text>
-            <Text style={styles.statusSub}>{isAvailable ? "Receiving new jobs" : "Not visible to customers"}</Text>
+        {/* ─── Current Status ─── */}
+        <Text style={styles.sectionHeader}>Current Status</Text>
+        <View style={styles.currentStatusCard}>
+          {/* Ready for Jobs info */}
+          <View style={styles.readyRow}>
+            <View style={styles.readyIcon}>
+              <MaterialCommunityIcons name="briefcase-check-outline" size={24} color={COLORS.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.readyTitle}>
+                {canWork ? 'Ready for Jobs' : 'Setup Required'}
+              </Text>
+              <Text style={styles.readySub}>
+                {canWork
+                  ? 'Stay online to receive instant job notifications in your area.'
+                  : 'Complete verification and training to start receiving jobs.'}
+              </Text>
+            </View>
           </View>
-          <Switch
-            value={isAvailable}
-            onValueChange={handleToggle}
-            trackColor={{ false: '#D0D0D0', true: '#A8D5BA' }}
-            thumbColor={isAvailable ? COLORS.primary : '#f4f3f4'}
-            disabled={!isVerified || !isTrainingCompleted || !jobStartDate}
-          />
+
+          <View style={styles.statusDivider} />
+
+          {/* Online toggle */}
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleLeft}>
+              <View style={[styles.onlineDot, { backgroundColor: isAvailable ? COLORS.primary : '#BDBDBD' }]} />
+              <View>
+                <Text style={styles.toggleTitle}>{isAvailable ? 'You are Online' : 'You are Offline'}</Text>
+                <Text style={styles.toggleSub}>{isAvailable ? 'Actively receiving jobs' : 'Not visible to customers'}</Text>
+              </View>
+            </View>
+            <Switch
+              value={isAvailable}
+              onValueChange={handleToggle}
+              trackColor={{ false: '#E0E0E0', true: '#2D6A4F' }}
+              thumbColor={COLORS.white}
+              ios_backgroundColor="#E0E0E0"
+              disabled={!canWork}
+            />
+          </View>
         </View>
 
-        {/* Stats Cards */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumberRed}>{earnings?.today?.count || 0}</Text>
-            <Text style={styles.statLabel}>Jobs Today</Text>
+        {/* ─── Performance ─── */}
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionHeader}>Performance</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Earnings')}>
+            <Text style={styles.viewAllText}>View All</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.perfRow}>
+          {/* Jobs Today */}
+          <View style={styles.perfCardLight}>
+            <View style={styles.perfIconRed}>
+              <MaterialCommunityIcons name="clipboard-text-outline" size={22} color="#C0392B" />
+            </View>
+            <Text style={styles.perfNumberDark}>{earnings?.today?.count || 0}</Text>
+            <Text style={styles.perfLabel}>Jobs Today</Text>
           </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumberDark}>₹{earnings?.thisMonth?.amount || 0}</Text>
-            <Text style={styles.statLabel}>Month Earned</Text>
+
+          {/* Month Earned */}
+          <View style={styles.perfCardGreen}>
+            <View style={styles.perfIconGreen}>
+              <MaterialCommunityIcons name="cash-multiple" size={22} color={COLORS.white} />
+            </View>
+            <Text style={styles.perfNumberWhite}>₹{earnings?.thisMonth?.amount || 0}</Text>
+            <Text style={styles.perfLabelWhite}>Month Earned</Text>
           </View>
         </View>
 
-        {/* Active Job Card */}
+        {/* ─── Active Job ─── */}
         {activeJob && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Active Job</Text>
+          <>
+            <Text style={styles.sectionHeader}>Active Job</Text>
             <TouchableOpacity
               style={styles.activeJobCard}
               onPress={() => navigation.navigate('JobDetails', { jobId: activeJob.id })}
@@ -488,6 +361,44 @@ export default function HomeScreen() {
                 <Text style={styles.viewDetailsBtnText}>View Details</Text>
               </TouchableOpacity>
             </TouchableOpacity>
+          </>
+        )}
+
+        {/* ─── Recent Activity ─── */}
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionHeader}>Recent Activity</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Jobs')}>
+            <Text style={styles.viewAllText}>View All</Text>
+          </TouchableOpacity>
+        </View>
+
+        {earnings?.recentJobs && earnings.recentJobs.length > 0 ? (
+          earnings.recentJobs.slice(0, 3).map((job: any, index: number) => (
+            <View key={job.id || index} style={styles.activityItem}>
+              <View style={styles.activityIcon}>
+                <MaterialCommunityIcons
+                  name={index % 3 === 0 ? 'home-city-outline' : index % 3 === 1 ? 'wrench-outline' : 'flash-outline'}
+                  size={20} color={COLORS.primary}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.activityTitle}>{job.serviceTitle || job.booking?.service?.title || 'Service'}</Text>
+                <View style={styles.activityMeta}>
+                  <View style={styles.completedBadge}>
+                    <Text style={styles.completedBadgeText}>COMPLETED</Text>
+                  </View>
+                  <Text style={styles.activityDate}>
+                    {job.completedAt ? new Date(job.completedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.activityAmount}>₹{job.payout || job.booking?.employeePayout || 0}</Text>
+            </View>
+          ))
+        ) : (
+          <View style={styles.emptyActivity}>
+            <MaterialCommunityIcons name="briefcase-off-outline" size={40} color={COLORS.mediumGray} />
+            <Text style={styles.emptyText}>No recent activity yet</Text>
           </View>
         )}
       </ScrollView>
@@ -498,275 +409,128 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-    paddingHorizontal: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-    marginTop: 4,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  headerTextContainer: {
-    marginLeft: 12,
-  },
-  greeting: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.charcoal,
-  },
-  badgeContainer: {
-    flexDirection: 'row',
-    marginTop: 4,
-  },
-  verifiedPill: {
-    backgroundColor: '#2D6A4F',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  verifiedPillText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  pendingPill: {
-    backgroundColor: COLORS.warning,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  pendingPillText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  bellContainer: {
-    position: 'relative',
-    padding: 4,
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 3,
-    right: 3,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: COLORS.error,
-    borderWidth: 1.5,
-    borderColor: COLORS.white,
-  },
+  container: { flex: 1, backgroundColor: COLORS.white, paddingHorizontal: 20 },
 
-  // Training / Info cards
-  alertCard: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 20,
+  // Header
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, position: 'relative' },
+  avatarImg: { width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.offWhite },
+  avatarFallback: { width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center' },
+  avatarFallbackText: { color: COLORS.white, fontSize: 18, fontWeight: '700' },
+  avatarBadge: {
+    position: 'absolute', left: 40, bottom: 0, width: 18, height: 18,
+    borderRadius: 9, backgroundColor: COLORS.primary, justifyContent: 'center',
+    alignItems: 'center', borderWidth: 2, borderColor: COLORS.white, zIndex: 2,
   },
-  infoCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
+  headerTextContainer: { marginLeft: 14, flex: 1 },
+  welcomeText: { fontSize: 13, color: '#6B7280', fontWeight: '400' },
+  buddyNameText: { fontSize: 20, fontWeight: '800', color: COLORS.charcoal, marginTop: 1 },
+  verifiedRow: { flexDirection: 'row', alignItems: 'center', marginTop: 3, gap: 4 },
+  verifiedLabel: { fontSize: 11, fontWeight: '700', color: COLORS.primary, letterSpacing: 0.5 },
+  pendingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 3, gap: 4 },
+  pendingLabel: { fontSize: 11, fontWeight: '700', color: COLORS.warning, letterSpacing: 0.5 },
+  bellContainer: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F5F5F5', justifyContent: 'center', alignItems: 'center' },
+  notificationDot: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.error },
+  divider: { height: 1, backgroundColor: '#F0F0F0', },
+
+  // Training cards
+  alertCard: { backgroundColor: COLORS.primary, borderRadius: 16, padding: 18, marginBottom: 20 },
+  alertHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  alertTitle: { color: COLORS.white, fontSize: 17, fontWeight: '700', marginLeft: 10 },
+  alertBody: { color: COLORS.white, fontSize: 14, marginBottom: 14, lineHeight: 20 },
+  dateBtn: { flex: 1, marginHorizontal: 5 },
+
+  statusInfoCard: {
+    flexDirection: 'row', backgroundColor: COLORS.white, borderRadius: 16, padding: 18,
+    marginBottom: 20, borderWidth: 1, borderColor: '#E8E8E8', alignItems: 'center', gap: 14,
   },
-  alertHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  alertTitle: {
-    color: COLORS.white,
-    fontSize: 17,
-    fontWeight: '700',
-    marginLeft: 10,
-  },
-  alertBody: {
-    color: COLORS.white,
-    fontSize: 14,
-    marginBottom: 14,
-    lineHeight: 20,
-  },
-  dateBtn: {
-    flex: 1,
-    marginHorizontal: 5,
-  },
+  statusInfoIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center' },
+  statusInfoTitle: { fontSize: 16, fontWeight: '700', color: COLORS.charcoal },
+  statusInfoSub: { fontSize: 13, color: '#6B7280', marginTop: 3, lineHeight: 18 },
 
   // Pending verification
-  pendingCard: {
-    flexDirection: 'row',
-    backgroundColor: '#FFF3E0',
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  pendingText: {
-    marginLeft: 10,
-    color: '#E65100',
-    flex: 1,
-    fontSize: 14,
-  },
+  pendingCard: { flexDirection: 'row', backgroundColor: '#FFF3E0', padding: 16, borderRadius: 14, marginBottom: 20, alignItems: 'center' },
+  pendingText: { marginLeft: 10, color: '#E65100', flex: 1, fontSize: 14 },
 
-  // Online/Offline toggle
-  statusCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderRadius: 14,
-    marginBottom: 24,
-  },
-  statusActive: {
-    backgroundColor: '#E8F8F0',
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
-  },
-  statusInactive: {
-    backgroundColor: '#F5F5F5',
-    borderLeftWidth: 4,
-    borderLeftColor: '#BDBDBD',
-  },
-  statusTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: COLORS.charcoal,
-  },
-  statusSub: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 2,
-  },
+  // Section headers
+  sectionHeader: { fontSize: 18, fontWeight: '800', color: COLORS.charcoal, marginBottom: 14 },
+  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
+  viewAllText: { fontSize: 14, fontWeight: '600', color: COLORS.primary },
 
-  // Stats cards
-  statsContainer: {
-    flexDirection: 'row',
-    gap: 14,
-    marginBottom: 24,
+  // Current Status
+  currentStatusCard: {
+    backgroundColor: COLORS.white, borderRadius: 16, padding: 20, marginBottom: 24,
+    borderWidth: 1, borderColor: '#E8E8E8', ...SHADOWS.light,
   },
-  statBox: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-    paddingVertical: 22,
-    borderRadius: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
+  readyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+  readyIcon: { width: 48, height: 48, borderRadius: 14, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center' },
+  readyTitle: { fontSize: 16, fontWeight: '700', color: COLORS.charcoal },
+  readySub: { fontSize: 13, color: '#6B7280', marginTop: 4, lineHeight: 19 },
+  statusDivider: { height: 1, backgroundColor: '#F0F0F0', marginVertical: 16 },
+  toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  toggleLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  onlineDot: { width: 10, height: 10, borderRadius: 5 },
+  toggleTitle: { fontSize: 15, fontWeight: '700', color: COLORS.charcoal },
+  toggleSub: { fontSize: 12, color: '#6B7280', marginTop: 1 },
+
+  // Performance cards
+  perfRow: { flexDirection: 'row', gap: 14, marginBottom: 24 },
+  perfCardLight: {
+    flex: 1, backgroundColor: '#FEF2F0', borderRadius: 16, padding: 18, paddingTop: 16, paddingBottom: 20,
   },
-  statNumberRed: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#B91C1C',
-    marginBottom: 4,
+  perfIconRed: {
+    width: 40, height: 40, borderRadius: 12, backgroundColor: '#FDDDD6',
+    justifyContent: 'center', alignItems: 'center', marginBottom: 16,
   },
-  statNumberDark: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: COLORS.charcoal,
-    marginBottom: 4,
+  perfNumberDark: { fontSize: 34, fontWeight: '800', color: COLORS.charcoal, marginBottom: 4 },
+  perfLabel: { fontSize: 13, fontWeight: '500', color: '#6B7280' },
+
+  perfCardGreen: {
+    flex: 1.2, backgroundColor: '#2D6A4F', borderRadius: 16, padding: 18, paddingTop: 16, paddingBottom: 20,
   },
-  statLabel: {
-    color: '#6B7280',
-    fontSize: 13,
-    fontWeight: '500',
+  perfIconGreen: {
+    width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center', alignItems: 'center', marginBottom: 16,
   },
+  perfNumberWhite: { fontSize: 34, fontWeight: '800', color: COLORS.white, marginBottom: 4 },
+  perfLabelWhite: { fontSize: 13, fontWeight: '500', color: 'rgba(255,255,255,0.7)' },
 
   // Active job
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 12,
-    color: COLORS.charcoal,
-  },
   activeJobCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 14,
-    padding: 18,
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
-    ...SHADOWS.light,
+    backgroundColor: COLORS.white, borderRadius: 14, padding: 18,
+    borderWidth: 1.5, borderColor: COLORS.primary, marginBottom: 24, ...SHADOWS.light,
   },
-  jobHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+  jobHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  serviceType: { fontSize: 16, fontWeight: '700', color: COLORS.charcoal, flex: 1 },
+  inProgressBadge: { backgroundColor: '#2D6A4F', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  inProgressBadgeText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+  address: { color: '#6B7280', fontSize: 14, marginBottom: 14 },
+  viewDetailsBtn: { backgroundColor: COLORS.primary, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+  viewDetailsBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+
+  // Recent Activity
+  activityItem: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB',
+    borderRadius: 14, padding: 16, marginBottom: 10, gap: 14,
   },
-  serviceType: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.charcoal,
-    flex: 1,
+  activityIcon: {
+    width: 44, height: 44, borderRadius: 14, backgroundColor: '#E8E8E8',
+    justifyContent: 'center', alignItems: 'center',
   },
-  inProgressBadge: {
-    backgroundColor: '#2D6A4F',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  inProgressBadgeText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  address: {
-    color: '#6B7280',
-    fontSize: 14,
-    marginBottom: 14,
-  },
-  viewDetailsBtn: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  viewDetailsBtnText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  activityTitle: { fontSize: 15, fontWeight: '700', color: COLORS.charcoal },
+  activityMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  completedBadge: { backgroundColor: '#DEF7EC', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  completedBadgeText: { fontSize: 10, fontWeight: '700', color: '#059669' },
+  activityDate: { fontSize: 12, color: '#6B7280' },
+  activityAmount: { fontSize: 16, fontWeight: '800', color: COLORS.primary },
+
+  emptyActivity: { alignItems: 'center', paddingVertical: 30 },
+  emptyText: { fontSize: 14, color: '#6B7280', marginTop: 8 },
 
   // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    width: '85%',
-    backgroundColor: COLORS.white,
-    padding: 24,
-    borderRadius: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 20,
-    color: COLORS.charcoal,
-  },
-  modalOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  optionText: {
-    fontSize: 16,
-    color: COLORS.charcoal,
-  },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { width: '85%', backgroundColor: COLORS.white, padding: 24, borderRadius: 20 },
+  modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 20, color: COLORS.charcoal },
+  modalOption: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  optionText: { fontSize: 16, color: COLORS.charcoal },
 });

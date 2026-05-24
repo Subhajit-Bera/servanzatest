@@ -8,9 +8,10 @@ import {
   getInitialNotification,
 } from '@react-native-firebase/messaging';
 import type { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
-import { Platform } from 'react-native';
+import { Platform, DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+import * as Notifications from 'expo-notifications';
 import { authApi } from '../api/client';
 import { navigate } from './navigationRef';
 import EventEmitter from 'eventemitter3';
@@ -134,9 +135,32 @@ export function NotificationListener() {
   const unsubscribe = onMessage(messaging, async remoteMessage => {
     console.log('[FCM] Foreground notification received:', remoteMessage.data?.type);
 
-    // For buddy-assignment, socket handles the popup - don't do anything here
+    // For buddy-assignment, emit to JobRequestContext and show local notification
     if (remoteMessage.data?.type === 'buddy-assignment') {
-      console.log('[FCM] buddy-assignment - socket handles popup, skipping');
+      console.log('[FCM] buddy-assignment received in foreground. Emitting local event & showing notification.');
+      
+      let dataPayload = { ...remoteMessage.data };
+      if (typeof dataPayload.metadata === 'string') {
+          try {
+              dataPayload.metadata = JSON.parse(dataPayload.metadata);
+          } catch(e) {}
+      }
+
+      DeviceEventEmitter.emit('incoming-job-request', dataPayload);
+
+      // Show local notification using expo-notifications
+      const title = 'New Job Assignment!';
+      const body = dataPayload.serviceTitle ? `${dataPayload.serviceTitle} at ${dataPayload.address}` : 'You have a new job request.';
+      
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title,
+          body,
+          data: dataPayload as any,
+          sound: true,
+        },
+        trigger: null,
+      });
       return;
     }
 

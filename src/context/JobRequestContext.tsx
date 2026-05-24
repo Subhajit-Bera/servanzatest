@@ -7,6 +7,7 @@ import React, {
     useRef,
     ReactNode,
 } from 'react';
+import { DeviceEventEmitter } from 'react-native';
 import { useAppSelector } from '../store/hooks';
 import { socket } from '../utils/socket';
 import { buddyApi } from '../api/client';
@@ -198,10 +199,14 @@ export const JobRequestProvider = ({ children }: { children: ReactNode }) => {
         socket.on('job:taken', handleJobTaken);
         socket.on('booking-cancelled', handleJobCancelled);
 
+        // Listen for requests triggered by FCM foreground messages or pending offline messages
+        const sub = DeviceEventEmitter.addListener('incoming-job-request', handleJobAssigned);
+
         return () => {
             socket.off('buddy-assignment', handleJobAssigned);
             socket.off('job:taken', handleJobTaken);
             socket.off('booking-cancelled', handleJobCancelled);
+            sub.remove();
         };
     }, [isAuthenticated, addJobRequest, markJobTaken, removeJob]); // Removed 'jobs' dependency
 

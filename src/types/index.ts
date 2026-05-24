@@ -112,6 +112,7 @@ export interface EarningsSummary {
   today: EarningsPeriod;
   thisWeek: EarningsPeriod;
   thisMonth: EarningsPeriod;
+  recentJobs?: any[];
 }
 
 export interface Review {

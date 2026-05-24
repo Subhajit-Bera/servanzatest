@@ -159,14 +159,14 @@ export default function AppNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen name="Notifications" component={NotificationScreen} />
-      <Stack.Screen 
-        name="Chat" 
-        component={ChatScreen} 
+      <Stack.Screen
+        name="Chat"
+        component={ChatScreen}
       />
-      <Stack.Screen 
-        name="VoiceCall" 
+      <Stack.Screen
+        name="VoiceCall"
         component={VoiceCallScreen}
-        options={{ presentation: 'modal' }} 
+        options={{ presentation: 'modal' }}
       />
     </Stack.Navigator>
   );

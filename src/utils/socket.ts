@@ -97,9 +97,15 @@ export const initSocket = (token: string) => {
     // These are messages the user missed while offline
     // Each message has: { event, data, createdAt }
     messages.forEach((msg) => {
-      console.log(`[Socket] Pending message - event: ${msg.event}`, msg.data);
-      // Re-emit the event locally so existing handlers can process it
-      socket.emit(msg.event, msg.data);
+      // Trigger local listeners for the event without sending back to server
+      const listeners = socket.listeners(msg.event);
+      if (listeners.length > 0) {
+        listeners.forEach((fn: any) => fn(msg.data));
+      } else if (msg.event === 'buddy-assignment') {
+        // Fallback for buddy-assignment if socket listeners aren't ready
+        const { DeviceEventEmitter } = require('react-native');
+        DeviceEventEmitter.emit('incoming-job-request', msg.data);
+      }
     });
   });
 };
