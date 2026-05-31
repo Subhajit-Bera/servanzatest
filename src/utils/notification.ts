@@ -26,6 +26,7 @@ type NotificationType =
   | 'booking-cancelled'
   | 'payment-received'
   | 'chat-message'
+  | 'incoming-call'
   | 'general';
 
 // 2. Handle Navigation based on Payload
@@ -76,6 +77,26 @@ const handleNotificationNavigation = (remoteMessage: FirebaseMessagingTypes.Remo
         bookingId: remoteMessage.data.bookingId,
         customerName: remoteMessage.data.customerName || 'Customer',
       });
+      break;
+
+    case 'incoming-call':
+      console.log('[NotificationNavigation] Incoming call tap from background');
+      if (remoteMessage.data.bookingId && remoteMessage.data.callId) {
+        let callerData = { name: 'Customer' };
+        try {
+            if (remoteMessage.data.caller) {
+                callerData = typeof remoteMessage.data.caller === 'string' ? JSON.parse(remoteMessage.data.caller) : remoteMessage.data.caller;
+            }
+        } catch (e) { }
+
+        // Emit an event to trigger global ringing or just navigate to VoiceCall Screen (depends on routing)
+        // Since buddy uses ChatContext for call state, and it might have VoiceCall globally? No, buddy app doesn't have a VoiceCallScreen as per previous lookup. It uses `ChatContext` for calling! Wait, let's see how buddy answers call... 
+        // Oh, buddy app has an IncomingCall overlay in ChatContext or similar? Let's navigate to Chat screen for now.
+        navigate('Chat', {
+          bookingId: remoteMessage.data.bookingId,
+          customerName: callerData.name,
+        });
+      }
       break;
 
     default:

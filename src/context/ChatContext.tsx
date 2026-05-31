@@ -6,9 +6,11 @@ import { Alert, ToastAndroid, Platform } from 'react-native';
 import InCallManager from 'react-native-incall-manager';
 import apiClient from '../api/client';
 import { RTCPeerConnection, RTCIceCandidate, RTCSessionDescription, mediaDevices } from 'react-native-webrtc';
+import { PermissionsAndroid } from 'react-native';
 
 export interface ChatMessage {
     id: string;
+    clientMessageId?: string;
     bookingId: string;
     senderId: string;
     sender: {
@@ -33,8 +35,8 @@ export interface IncomingCallData {
         name: string;
         profileImage?: string;
     };
-    offer: RTCSessionDescriptionInit;
-    iceServers: RTCIceServer[];
+    offer?: RTCSessionDescriptionInit;
+    iceServers?: RTCIceServer[];
 }
 
 interface ChatContextType {
@@ -101,6 +103,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const callIdRef = useRef<string | null>(null);
     const iceServersRef = useRef<RTCIceServer[]>(WEBRTC_CONFIG.iceServers);
+    const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Chat Methods
@@ -135,8 +138,11 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const sendMessage = useCallback((bookingId: string, content: string) => {
         if (!socket.connected || !content.trim()) return;
 
+        const clientMessageId = Date.now().toString() + Math.random().toString(36).substring(7);
+
         const tempMessage: ChatMessage = {
-            id: Date.now().toString() + Math.random().toString(36).substring(7),
+            id: clientMessageId, // temporary ID
+            clientMessageId,
             bookingId,
             senderId: currentUserId,
             sender: { id: currentUserId, name: user?.name || '', role: user?.role || '' },
@@ -151,7 +157,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             return { ...prev, [bookingId]: [...bookingMsgs, tempMessage] };
         });
 
-        socket.emit('chat:send', { bookingId, content: content.trim(), type: 'TEXT' });
+        socket.emit('chat:send', { bookingId, content: content.trim(), type: 'TEXT', clientMessageId });
     }, [socket, currentUserId, user]);
 
     const sendTyping = useCallback((bookingId: string, isTypingStatus: boolean) => {
@@ -192,6 +198,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         setIsMuted(false);
         setIsSpeaker(false);
         setActiveCallBookingId(null);
+        pendingIceCandidatesRef.current = [];
     }, []);
 
     const createPeerConnection = useCallback((servers?: RTCIceServer[]) => {
@@ -230,6 +237,22 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const initiateCall = useCallback(async (bookingId: string) => {
         if (!socket.connected || callState !== 'idle') return;
 
+        if (Platform.OS === 'android') {
+            try {
+                const permissions = [PermissionsAndroid.PERMISSIONS.RECORD_AUDIO];
+                if (Platform.Version >= 33) {
+                    permissions.push(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+                }
+                const granted = await PermissionsAndroid.requestMultiple(permissions);
+                if (granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] !== PermissionsAndroid.RESULTS.GRANTED) {
+                    console.error('[ChatContext] Microphone permission denied');
+                    return;
+                }
+            } catch (err) {
+                console.warn('[ChatContext] Error requesting permissions', err);
+            }
+        }
+
         try {
             const stream = await mediaDevices.getUserMedia({ audio: true, video: false });
             localStreamRef.current = stream as any;
@@ -257,16 +280,55 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const answerCall = useCallback(async () => {
         if (!socket.connected || !incomingCall) return;
 
+        if (Platform.OS === 'android') {
+            try {
+                const permissions = [PermissionsAndroid.PERMISSIONS.RECORD_AUDIO];
+                if (Platform.Version >= 33) {
+                    permissions.push(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+                }
+                const granted = await PermissionsAndroid.requestMultiple(permissions);
+                if (granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] !== PermissionsAndroid.RESULTS.GRANTED) {
+                    console.error('[ChatContext] Microphone permission denied');
+                    return;
+                }
+            } catch (err) {
+                console.warn('[ChatContext] Error requesting permissions', err);
+            }
+        }
+
         try {
+            const { callApi } = await import('../api/client');
+            const response = await callApi.getPendingCall(incomingCall.callId);
+            const pendingData = response.data?.data;
+
+            if (!pendingData || !pendingData.offer) {
+                throw new Error('Call offer not found or expired');
+            }
+
+            const offer = pendingData.offer;
+            const iceServers = pendingData.iceServers || WEBRTC_CONFIG.iceServers;
+
             const stream = await mediaDevices.getUserMedia({ audio: true, video: false });
             localStreamRef.current = stream as any;
 
-            iceServersRef.current = incomingCall.iceServers;
-            const pc = createPeerConnection(incomingCall.iceServers);
+            iceServersRef.current = iceServers;
+            const pc = createPeerConnection(iceServers);
             
             (stream as any).getTracks().forEach((track: any) => pc.addTrack(track, stream as any));
 
-            await pc.setRemoteDescription(new RTCSessionDescription(incomingCall.offer as any));
+            await pc.setRemoteDescription(new RTCSessionDescription(offer as any));
+            
+            while (pendingIceCandidatesRef.current.length > 0) {
+                const candidate = pendingIceCandidatesRef.current.shift();
+                if (candidate) {
+                    try {
+                        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                    } catch (e) {
+                        console.error('[ChatContext] Error adding queued ICE candidate:', e);
+                    }
+                }
+            }
+
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
 
@@ -289,18 +351,34 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         }
     }, [socket, incomingCall, createPeerConnection, cleanupCall, startDurationTimer]);
 
-    const rejectCall = useCallback(() => {
-        if (incomingCall && socket.connected) {
-            socket.emit('call:reject', { callId: incomingCall.callId });
+    const rejectCall = useCallback(async () => {
+        if (incomingCall) {
+            try {
+                const { callApi } = await import('../api/client');
+                await callApi.rejectCall(incomingCall.callId);
+            } catch (error) {
+                console.error('[ChatContext] Error rejecting call via REST:', error);
+                if (socket.connected) {
+                    socket.emit('call:reject', { callId: incomingCall.callId });
+                }
+            }
         }
         InCallManager?.stopRingtone();
         setIncomingCall(null);
         setCallState('idle');
     }, [incomingCall, socket]);
 
-    const endCall = useCallback(() => {
-        if (callIdRef.current && socket.connected) {
-            socket.emit('call:end', { callId: callIdRef.current });
+    const endCall = useCallback(async () => {
+        if (callIdRef.current) {
+            try {
+                const { callApi } = await import('../api/client');
+                await callApi.endCall(callIdRef.current);
+            } catch (error) {
+                console.error('[ChatContext] Error ending call via REST:', error);
+                if (socket.connected) {
+                    socket.emit('call:end', { callId: callIdRef.current });
+                }
+            }
         }
         cleanupCall();
         setCallState('ended');
@@ -313,8 +391,10 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         if (localStreamRef.current) {
             const track = localStreamRef.current.getAudioTracks()[0];
             if (track) {
-                track.enabled = !track.enabled;
-                setIsMuted(!track.enabled);
+                const newMutedState = !track.enabled;
+                track.enabled = newMutedState;
+                setIsMuted(!newMutedState);
+                InCallManager?.setMicrophoneMute(!newMutedState);
             }
         }
     }, []);
@@ -337,10 +417,20 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         const handleMessage = (data: ChatMessage) => {
             setMessages(prev => {
                 const bookingMsgs = prev[data.bookingId] || [];
+                
+                if (data.clientMessageId) {
+                    const tempIndex = bookingMsgs.findIndex(m => m.clientMessageId === data.clientMessageId);
+                    if (tempIndex !== -1) {
+                        const newMsgs = [...bookingMsgs];
+                        newMsgs[tempIndex] = data;
+                        return { ...prev, [data.bookingId]: newMsgs };
+                    }
+                }
+
                 if (bookingMsgs.some(m => m.id === data.id)) return prev;
                 
-                // Ignore our own echoes because optimistic UI already added them
-                if (data.senderId === currentUserId) return prev;
+                // Ignore our own echoes fallback if no clientMessageId
+                if (!data.clientMessageId && data.senderId === currentUserId) return prev;
                 
                 return { ...prev, [data.bookingId]: [...bookingMsgs, data] };
             });
@@ -405,6 +495,18 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             if (!pc) return;
             try {
                 await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                
+                while (pendingIceCandidatesRef.current.length > 0) {
+                    const candidate = pendingIceCandidatesRef.current.shift();
+                    if (candidate) {
+                        try {
+                            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                        } catch (e) {
+                            console.error('[ChatContext] Error adding queued ICE candidate:', e);
+                        }
+                    }
+                }
+
                 setCallState('connected');
                 startDurationTimer();
             } catch (error) {
@@ -417,7 +519,11 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             const pc = peerConnectionRef.current;
             if (!pc) return;
             try {
-                await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+                if (pc.remoteDescription) {
+                    await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+                } else {
+                    pendingIceCandidatesRef.current.push(data.candidate);
+                }
             } catch (error) {
                 console.error('[ChatContext] ICE candidate error:', error);
             }

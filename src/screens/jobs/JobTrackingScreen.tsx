@@ -140,6 +140,30 @@ export default function JobTrackingScreen() {
         }
     }, [job?.status]);
 
+    // Listen for real-time booking updates
+    useEffect(() => {
+        if (!socket || !job?.booking?.id) return;
+
+        const handleBookingUpdated = (data: any) => {
+            if (data.bookingId === job.booking.id) {
+                if (data.status === 'CANCELLED') {
+                    Alert.alert('Booking Cancelled', 'The customer has cancelled this booking.');
+                    navigation.navigate('Home');
+                    return;
+                }
+                fetchJobDetails();
+            }
+        };
+
+        socket.on('booking:updated', handleBookingUpdated);
+        socket.on('booking:status:changed', handleBookingUpdated);
+
+        return () => {
+            socket.off('booking:updated', handleBookingUpdated);
+            socket.off('booking:status:changed', handleBookingUpdated);
+        };
+    }, [socket, job?.booking?.id]);
+
     // Fit map to show route
     useEffect(() => {
         if (buddyLocation && job?.booking.address && mapRef.current) {

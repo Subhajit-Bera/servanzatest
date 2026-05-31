@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { buddyApi } from '../../api/client';
 import { COLORS } from '../../config/theme';
 import { useActiveJob } from '../../context/ActiveJobContext';
+import { useSocket } from '../../context/SocketContext';
 import { getDisplayTitle, getBuddyAddress } from '../../utils/bookingHelpers';
 
 export default function JobInProgressScreen() {
@@ -22,6 +23,7 @@ export default function JobInProgressScreen() {
     const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
     const { activeJob, remainingSeconds, elapsedSeconds, startJob, clearJob } = useActiveJob();
+    const { socket } = useSocket();
 
     const { assignmentId, durationMinutes } = route.params || {};
 
@@ -33,6 +35,31 @@ export default function JobInProgressScreen() {
     useEffect(() => {
         fetchJobDetails();
     }, []);
+
+    // Listen for real-time booking updates
+    useEffect(() => {
+        if (!socket || !job?.booking?.id) return;
+
+        const handleBookingUpdated = (data: any) => {
+            if (data.bookingId === job.booking.id) {
+                if (data.status === 'CANCELLED') {
+                    Alert.alert('Booking Cancelled', 'The customer has cancelled this booking.');
+                    clearJob();
+                    navigation.navigate('Home');
+                    return;
+                }
+                fetchJobDetails();
+            }
+        };
+
+        socket.on('booking:updated', handleBookingUpdated);
+        socket.on('booking:status:changed', handleBookingUpdated);
+
+        return () => {
+            socket.off('booking:updated', handleBookingUpdated);
+            socket.off('booking:status:changed', handleBookingUpdated);
+        };
+    }, [socket, job?.booking?.id]);
 
     const fetchJobDetails = async () => {
         try {
