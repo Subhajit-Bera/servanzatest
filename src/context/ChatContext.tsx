@@ -4,9 +4,10 @@ import { useAppSelector } from '../store/hooks';
 import { WEBRTC_CONFIG } from '../config/constants';
 import { Alert, ToastAndroid, Platform } from 'react-native';
 import InCallManager from 'react-native-incall-manager';
-import apiClient from '../api/client';
-import { RTCPeerConnection, RTCIceCandidate, RTCSessionDescription, mediaDevices } from 'react-native-webrtc';
+import apiClient, { callApi } from '../api/client';
+import { RTCPeerConnection, RTCIceCandidate, RTCSessionDescription, mediaDevices, MediaStream } from 'react-native-webrtc';
 import { PermissionsAndroid } from 'react-native';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface ChatMessage {
     id: string;
@@ -64,6 +65,7 @@ interface ChatContextType {
     endCall: () => void;
     toggleMute: () => void;
     toggleSpeaker: () => void;
+    remoteStream: MediaStream | null;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -96,14 +98,17 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const [callDuration, setCallDuration] = useState(0);
     const [isMuted, setIsMuted] = useState(false);
     const [isSpeaker, setIsSpeaker] = useState(false);
+    const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
     // --- WebRTC Refs ---
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
     const localStreamRef = useRef<MediaStream | null>(null);
     const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const callIdRef = useRef<string | null>(null);
+    const clientCallIdRef = useRef<string | null>(null);
     const iceServersRef = useRef<RTCIceServer[]>(WEBRTC_CONFIG.iceServers);
     const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+    const remoteStreamRef = useRef<MediaStream | null>(null);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Chat Methods
@@ -199,17 +204,29 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         setIsSpeaker(false);
         setActiveCallBookingId(null);
         pendingIceCandidatesRef.current = [];
+        setRemoteStream(null);
     }, []);
 
     const createPeerConnection = useCallback((servers?: RTCIceServer[]) => {
         const pc = new RTCPeerConnection({ iceServers: servers || iceServersRef.current });
 
         (pc as any).addEventListener('icecandidate', (event: any) => {
-            if (event.candidate && callIdRef.current && socket.connected) {
-                socket.emit('call:ice-candidate', {
-                    callId: callIdRef.current,
-                    candidate: event.candidate.toJSON(),
-                });
+            if (event.candidate) {
+                if ((callIdRef.current || clientCallIdRef.current) && socket.connected) {
+                    socket.emit('call:ice-candidate', {
+                        callId: callIdRef.current,
+                        clientCallId: clientCallIdRef.current,
+                        candidate: event.candidate.toJSON(),
+                    });
+                } else {
+                    pendingIceCandidatesRef.current.push(event.candidate.toJSON());
+                }
+            }
+        });
+
+        (pc as any).addEventListener('track', (event: any) => {
+            if (event.streams && event.streams[0]) {
+                setRemoteStream(event.streams[0]);
             }
         });
 
@@ -260,6 +277,8 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             const pc = createPeerConnection();
             (stream as any).getTracks().forEach((track: any) => pc.addTrack(track, stream as any));
 
+            clientCallIdRef.current = uuidv4();
+
             const offer = await pc.createOffer({});
             await pc.setLocalDescription(offer);
 
@@ -268,8 +287,18 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
 
             socket.emit('call:initiate', {
                 bookingId,
+                clientCallId: clientCallIdRef.current,
                 offer: pc.localDescription,
             });
+
+            // Process any ICE candidates buffered before clientCallId was set
+            while (pendingIceCandidatesRef.current.length > 0 && socket.connected) {
+                const candidate = pendingIceCandidatesRef.current.shift();
+                socket.emit('call:ice-candidate', {
+                    clientCallId: clientCallIdRef.current,
+                    candidate,
+                });
+            }
         } catch (error) {
             console.error('[ChatContext] Error initiating call:', error);
             cleanupCall();
@@ -297,7 +326,6 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         }
 
         try {
-            const { callApi } = await import('../api/client');
             const response = await callApi.getPendingCall(incomingCall.callId);
             const pendingData = response.data?.data;
 
@@ -354,7 +382,6 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const rejectCall = useCallback(async () => {
         if (incomingCall) {
             try {
-                const { callApi } = await import('../api/client');
                 await callApi.rejectCall(incomingCall.callId);
             } catch (error) {
                 console.error('[ChatContext] Error rejecting call via REST:', error);
@@ -371,7 +398,6 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const endCall = useCallback(async () => {
         if (callIdRef.current) {
             try {
-                const { callApi } = await import('../api/client');
                 await callApi.endCall(callIdRef.current);
             } catch (error) {
                 console.error('[ChatContext] Error ending call via REST:', error);
@@ -379,11 +405,16 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
                     socket.emit('call:end', { callId: callIdRef.current });
                 }
             }
+        } else if (clientCallIdRef.current) {
+            if (socket.connected) {
+                socket.emit('call:cancel', { clientCallId: clientCallIdRef.current });
+            }
         }
         cleanupCall();
         setCallState('ended');
         setCallId(null);
         callIdRef.current = null;
+        clientCallIdRef.current = null;
         setTimeout(() => setCallState('idle'), 2000);
     }, [socket, cleanupCall]);
 
@@ -479,10 +510,21 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         };
 
         // --- Call Events ---
-        const handleCallInitiated = (data: { callId: string; iceServers?: RTCIceServer[] }) => {
+        const handleCallInitiated = (data: { callId: string; clientCallId?: string; iceServers?: RTCIceServer[] }) => {
             setCallId(data.callId);
             callIdRef.current = data.callId;
+            if (data.clientCallId) {
+                clientCallIdRef.current = data.clientCallId;
+            }
             if (data.iceServers) iceServersRef.current = data.iceServers;
+            
+            while (pendingIceCandidatesRef.current.length > 0 && socket.connected) {
+                const candidate = pendingIceCandidatesRef.current.shift();
+                socket.emit('call:ice-candidate', {
+                    callId: data.callId,
+                    candidate,
+                });
+            }
         };
 
         const handleIncomingCall = (data: IncomingCallData) => {
@@ -534,6 +576,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             setCallState('ended');
             setCallId(null);
             callIdRef.current = null;
+            clientCallIdRef.current = null;
             setIncomingCall(null);
             setTimeout(() => setCallState('idle'), 2000);
         };
@@ -551,6 +594,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         socket.on('call:rejected', handleCallEndedOrRejected);
         socket.on('call:ended', handleCallEndedOrRejected);
         socket.on('call:missed', handleCallEndedOrRejected);
+        socket.on('call:cancelled', handleCallEndedOrRejected);
 
         return () => {
             socket.off('chat:message', handleMessage);
@@ -565,6 +609,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             socket.off('call:rejected', handleCallEndedOrRejected);
             socket.off('call:ended', handleCallEndedOrRejected);
             socket.off('call:missed', handleCallEndedOrRejected);
+            socket.off('call:cancelled', handleCallEndedOrRejected);
         };
     }, [socket, activeChatBookingId, currentUserId, cleanupCall, endCall, startDurationTimer]);
 
@@ -615,6 +660,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             endCall,
             toggleMute,
             toggleSpeaker,
+            remoteStream,
         }}>
             {children}
         </ChatContext.Provider>

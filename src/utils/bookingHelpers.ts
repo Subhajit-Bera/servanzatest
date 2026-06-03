@@ -55,3 +55,39 @@ export const getBuddyAddress = (address: any): string => {
     if (street && pin) return `${street} - ${pin}`;
     return street || address.formattedAddress || 'Address';
 };
+
+/**
+ * Calculates the exact job duration in minutes dynamically.
+ * Fallbacks from scheduled DB times down to static metadata.
+ */
+export const getActualJobDuration = (booking: any): number => {
+    try {
+        // 1. Exact DB scheduled times
+        if (booking?.scheduledStart && booking?.scheduledEnd) {
+            const start = new Date(booking.scheduledStart).getTime();
+            const end = new Date(booking.scheduledEnd).getTime();
+            const mins = Math.round((end - start) / 60000);
+            if (mins > 0) return mins;
+        }
+
+        // 2. Metadata items duration (if mapped)
+        const items = getBookingItems(booking);
+        if (items.length > 0) {
+            let totalMins = 0;
+            for (const item of items) {
+                const itemDuration = (item as any).durationMins || 0;
+                totalMins += itemDuration * (item.quantity || 1);
+            }
+            if (totalMins > 0) return totalMins;
+        }
+
+        // 3. Simple fallbacks
+        if (booking?.durationMins) return booking.durationMins;
+        if (booking?.service?.durationMins) return booking.service.durationMins;
+
+        return 60; // Absolute fallback
+    } catch (e) {
+        console.warn('[bookingHelpers] Failed to calculate duration', e);
+        return 60;
+    }
+};

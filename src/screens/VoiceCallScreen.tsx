@@ -10,6 +10,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useChat } from '../context/ChatContext';
+import { RTCView } from 'react-native-webrtc';
 
 type RouteParams = {
     params: {
@@ -34,6 +35,7 @@ const VoiceCallScreen = () => {
         endCall,
         toggleMute,
         toggleSpeaker,
+        remoteStream,
     } = useChat();
 
     const hasAnsweredRef = useRef(false);
@@ -111,6 +113,13 @@ const VoiceCallScreen = () => {
                     
                     <Text style={styles.nameText}>{customerName}</Text>
                     <Text style={styles.statusText}>{getStatusText()}</Text>
+
+                    {remoteStream && (
+                        <RTCView 
+                            streamURL={remoteStream.toURL()} 
+                            style={styles.hiddenRtcView} 
+                        />
+                    )}
                 </View>
 
                 <View style={styles.controlsContainer}>
@@ -249,6 +258,12 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.4,
         shadowRadius: 8,
+    },
+    hiddenRtcView: {
+        position: 'absolute',
+        width: 1,
+        height: 1,
+        opacity: 0,
     },
 });
 

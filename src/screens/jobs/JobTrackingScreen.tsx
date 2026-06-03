@@ -22,6 +22,7 @@ import {
     startBackgroundLocationTracking,
     stopBackgroundLocationTracking
 } from '../../utils/backgroundLocation';
+import { getActualJobDuration } from '../../utils/bookingHelpers';
 
 import { CONFIG } from '../../config/constants';
 
@@ -348,7 +349,7 @@ export default function JobTrackingScreen() {
             await buddyApi.startJob(assignmentId);
             navigation.replace('JobInProgress', {
                 assignmentId,
-                durationMinutes: job?.booking.service.durationMins || 60
+                durationMinutes: getActualJobDuration(job?.booking)
             });
         } catch (error: any) {
             Alert.alert('Error', error.response?.data?.message || 'Failed to start job');
@@ -358,6 +359,10 @@ export default function JobTrackingScreen() {
 
     const handleCallUser = () => {
         if (job) {
+            if (job.status === 'ACCEPTED') {
+                Alert.alert('Action Required', 'Start Navigation to Call and Chat with Customer.');
+                return;
+            }
             navigation.navigate('VoiceCall', {
                 bookingId: job.booking.id,
                 customerName: job.booking.user.name,
@@ -367,6 +372,10 @@ export default function JobTrackingScreen() {
 
     const handleChatUser = () => {
         if (job) {
+            if (job.status === 'ACCEPTED') {
+                Alert.alert('Action Required', 'Start Navigation to Call and Chat with Customer.');
+                return;
+            }
             navigation.navigate('Chat', {
                 bookingId: job.booking.id,
                 customerName: job.booking.user.name,

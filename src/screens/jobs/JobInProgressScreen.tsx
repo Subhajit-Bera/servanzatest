@@ -16,7 +16,7 @@ import { buddyApi } from '../../api/client';
 import { COLORS } from '../../config/theme';
 import { useActiveJob } from '../../context/ActiveJobContext';
 import { useSocket } from '../../context/SocketContext';
-import { getDisplayTitle, getBuddyAddress } from '../../utils/bookingHelpers';
+import { getDisplayTitle, getBuddyAddress, getActualJobDuration } from '../../utils/bookingHelpers';
 
 export default function JobInProgressScreen() {
     const route = useRoute<any>();
@@ -67,25 +67,26 @@ export default function JobInProgressScreen() {
             const jobData = response.data?.data || response.data;
             setJob(jobData);
 
-            // Check if we need to start/update the job in context
-            // Start new if: no active job OR active job is for a different assignment
-            if (!activeJob || activeJob.assignmentId !== assignmentId) {
-                // Clear any old job first
-                if (activeJob && activeJob.assignmentId !== assignmentId) {
-                    console.log('[JobInProgress] Clearing old job context, starting new one');
-                    await clearJob();
-                }
+                const computedDuration = getActualJobDuration(jobData.booking);
 
-                // Start the job timer with fresh data
-                const jobStartedAt = jobData.startedAt || new Date().toISOString();
-                console.log('[JobInProgress] Starting job timer with startedAt:', jobStartedAt);
+                // Start or restart if the job is not in context or context duration doesn't match
+                if (!activeJob || activeJob.assignmentId !== assignmentId || activeJob.durationMinutes !== computedDuration) {
+                    // Clear any old job first
+                    if (activeJob) {
+                        console.log('[JobInProgress] Clearing old/mismatched job context, starting new one');
+                        await clearJob();
+                    }
 
-                await startJob({
-                    assignmentId,
-                    bookingId: jobData.booking.id,
-                    startedAt: jobStartedAt,
-                    durationMinutes: durationMinutes || jobData.booking.service.durationMins || 60,
-                    serviceName: getDisplayTitle(jobData.booking),
+                    // Start the job timer with fresh data
+                    const jobStartedAt = jobData.startedAt || new Date().toISOString();
+                    console.log('[JobInProgress] Starting job timer with startedAt:', jobStartedAt);
+
+                    await startJob({
+                        assignmentId,
+                        bookingId: jobData.booking.id,
+                        startedAt: jobStartedAt,
+                        durationMinutes: computedDuration,
+                        serviceName: getDisplayTitle(jobData.booking),
                     customerName: jobData.booking.user.name,
                     customerPhone: jobData.booking.user.phone,
                     address: jobData.booking.address?.formattedAddress || getBuddyAddress(jobData.booking.address),
