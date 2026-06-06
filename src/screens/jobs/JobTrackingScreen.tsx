@@ -7,6 +7,7 @@ import {
     Alert,
     Linking,
     ActivityIndicator,
+    DeviceEventEmitter,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
@@ -135,11 +136,26 @@ export default function JobTrackingScreen() {
         if (job && job.status === 'ON_WAY') {
             startLocationTracking();
             // Start background tracking for when app is minimized
-            startBackgroundTracking();
+            if (!isBackgroundTrackingEnabled) {
+                startBackgroundTracking();
+            }
         } else if (job && job.status === 'ACCEPTED') {
             startLocationTracking();
         }
     }, [job?.status]);
+
+    // Listen for background location updates and hydrate the map
+    useEffect(() => {
+        const subscription = DeviceEventEmitter.addListener(
+            'background-location-update',
+            (data: { latitude: number; longitude: number; heading: number }) => {
+                setBuddyLocation({ latitude: data.latitude, longitude: data.longitude });
+                setHeading(data.heading);
+            }
+        );
+
+        return () => subscription.remove();
+    }, []);
 
     // Listen for real-time booking updates
     useEffect(() => {
@@ -227,9 +243,9 @@ export default function JobTrackingScreen() {
             if (!location) {
                 location = await Promise.race([
                     Location.getCurrentPositionAsync({
-                        accuracy: Location.Accuracy.Balanced,
+                        accuracy: Location.Accuracy.Low,
                     }),
-                    new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000))
+                    new Promise<null>((resolve) => setTimeout(() => resolve(null), 10000))
                 ]);
             }
 
@@ -440,7 +456,7 @@ export default function JobTrackingScreen() {
                     latitudeDelta: 0.05,
                     longitudeDelta: 0.05,
                 }}
-                showsUserLocation={false}
+                showsUserLocation={job.status === 'ON_WAY'}
                 showsMyLocationButton={true}
                 showsCompass={true}
                 showsTraffic={job.status === 'ON_WAY'}

@@ -16,6 +16,26 @@ import { authApi } from '../api/client';
 import { navigate } from './navigationRef';
 import EventEmitter from 'eventemitter3';
 
+// Configure expo-notifications to show alerts in foreground
+Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+    }),
+});
+
+// Create Android notification channel
+if (Platform.OS === 'android') {
+    Notifications.setNotificationChannelAsync('default', {
+        name: 'Default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+    });
+}
+
 // Event Emitter for Job Requests (used by JobRequestContext)
 export const notificationEvents = new EventEmitter();
 

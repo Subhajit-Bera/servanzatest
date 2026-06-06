@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { socket } from './socket';
+import { DeviceEventEmitter } from 'react-native';
 
 // Task name for background location
 export const BACKGROUND_LOCATION_TASK = 'background-location-task';
@@ -11,6 +12,19 @@ let activeJobInfo: {
     bookingId: string;
     userId: string;
 } | null = null;
+
+let lastEmittedCoords: { latitude: number; longitude: number } | null = null;
+
+/** Haversine distance in meters between two lat/lng points */
+const haversineMeters = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
 
 // Define the background task
 TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: any) => {
@@ -24,7 +38,19 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: any) =>
         const location = locations[0];
 
         if (location && activeJobInfo) {
-            console.log('[BackgroundLocation] Got location:', location.coords.latitude, location.coords.longitude);
+            const newCoords = { latitude: location.coords.latitude, longitude: location.coords.longitude };
+            
+            // Distance filter: skip if moved less than 5 meters
+            if (lastEmittedCoords) {
+                const moved = haversineMeters(
+                    lastEmittedCoords.latitude, lastEmittedCoords.longitude,
+                    newCoords.latitude, newCoords.longitude
+                );
+                if (moved < 5) return;
+            }
+            lastEmittedCoords = newCoords;
+
+            console.log('[BackgroundLocation] Got location:', newCoords.latitude, newCoords.longitude);
 
             // Send location to backend via Socket.IO
             if (socket.connected) {
@@ -49,6 +75,13 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: any) =>
                     console.error('[BackgroundLocation] HTTP fallback error:', err);
                 }
             }
+
+            // Bridge to foreground UI state
+            DeviceEventEmitter.emit('background-location-update', {
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+                heading: location.coords.heading || 0,
+            });
         }
     }
 });
@@ -108,6 +141,7 @@ export const startBackgroundLocationTracking = async (jobInfo: {
  */
 export const stopBackgroundLocationTracking = async () => {
     activeJobInfo = null;
+    lastEmittedCoords = null;
 
     const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);
     if (isRegistered) {

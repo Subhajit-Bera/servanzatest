@@ -49,6 +49,9 @@ const queryClient = new QueryClient({
 export default function App() {
 
   useEffect(() => {
+    // Request notification permissions (required for Android 13+)
+    requestUserPermission().catch(err => console.warn('[App] Notification permission error:', err));
+
     // Mount global FCM notification listeners
     const unsubscribe = NotificationListener();
     return () => {
