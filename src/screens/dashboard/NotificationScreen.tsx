@@ -61,6 +61,9 @@ export default function NotificationScreen() {
             if (error.response?.status === 409) {
                 Alert.alert('Too Late', error.response?.data?.message || 'This job was accepted by another buddy.');
                 await markAsRead(notification.id);
+            } else if (error.response?.status === 400) {
+                Alert.alert('Expired', 'This job offer has expired or was already processed.');
+                await markAsRead(notification.id);
             } else {
                 Alert.alert('Error', error.response?.data?.message || 'Failed to accept job');
             }
@@ -206,24 +209,26 @@ export default function NotificationScreen() {
                 )}
 
                 {/* Action Buttons */}
-                <View style={styles.actionRow}>
-                    <Button
-                        mode="outlined"
-                        onPress={() => handleIgnore(item)}
-                        style={styles.ignoreBtn}
-                        labelStyle={styles.ignoreBtnLabel}
-                    >
-                        Ignore
-                    </Button>
-                    <Button
-                        mode="contained"
-                        onPress={() => handleAccept(item)}
-                        style={styles.acceptBtn}
-                        labelStyle={styles.acceptBtnLabel}
-                    >
-                        Accept
-                    </Button>
-                </View>
+                {!item.isRead && (
+                    <View style={styles.actionRow}>
+                        <Button
+                            mode="outlined"
+                            onPress={() => handleIgnore(item)}
+                            style={styles.ignoreBtn}
+                            labelStyle={styles.ignoreBtnLabel}
+                        >
+                            Ignore
+                        </Button>
+                        <Button
+                            mode="contained"
+                            onPress={() => handleAccept(item)}
+                            style={styles.acceptBtn}
+                            labelStyle={styles.acceptBtnLabel}
+                        >
+                            Accept
+                        </Button>
+                    </View>
+                )}
             </Surface>
         );
     };
