@@ -4,7 +4,7 @@ import { buddyApi } from '../api/client';
 import { useAppSelector } from '../store/hooks';
 
 // Notification Types matching Backend FCM Payload
-export type NotificationType = 'buddy-assignment' | 'booking-cancelled' | 'chat-message' | 'general';
+export type NotificationType = 'buddy-assignment' | 'booking-cancelled' | 'chat-message' | 'general' | 'BOOKING_ASSIGNED';
 
 export interface StoredNotification {
     id: string;

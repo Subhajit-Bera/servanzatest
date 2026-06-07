@@ -86,6 +86,24 @@ export default function NotificationScreen() {
         }
     };
 
+    const handleNotificationPress = async (item: StoredNotification) => {
+        if (!item.isRead) {
+            await markAsRead(item.id);
+        }
+
+        if (item.type === 'BOOKING_ASSIGNED') {
+            const assignmentId = item.data?.assignmentId;
+            if (assignmentId) {
+                navigation.navigate('Home', {
+                    screen: 'JobDetailView',
+                    params: { assignmentId }
+                });
+            }
+        } else if (item.type === 'chat-message') {
+            handleOpenChat(item);
+        }
+    };
+
     const handleClearAll = () => {
         Alert.alert(
             'Mark All as Read',
@@ -157,6 +175,7 @@ export default function NotificationScreen() {
 
 
         return (
+            <TouchableOpacity activeOpacity={0.7} onPress={() => handleNotificationPress(item)}>
             <Surface style={[styles.card, SHADOWS.light, item.isRead && styles.readCard]}>
                 {/* Header with bell icon and time */}
                 <View style={styles.cardHeader}>
@@ -230,6 +249,7 @@ export default function NotificationScreen() {
                     </View>
                 )}
             </Surface>
+            </TouchableOpacity>
         );
     };
 
@@ -238,6 +258,7 @@ export default function NotificationScreen() {
         const message = data.message || 'A booking has been cancelled.';
 
         return (
+            <TouchableOpacity activeOpacity={0.7} onPress={() => handleNotificationPress(item)}>
             <Surface style={[styles.card, styles.cancelCard, SHADOWS.light, item.isRead && styles.readCard]}>
                 <View style={styles.cardHeader}>
                     <View style={styles.headerLeft}>
@@ -262,6 +283,7 @@ export default function NotificationScreen() {
                     </Button>
                 </View>
             </Surface>
+            </TouchableOpacity>
         );
     };
 
@@ -271,6 +293,7 @@ export default function NotificationScreen() {
         const content = data.content || 'Sent a message';
 
         return (
+            <TouchableOpacity activeOpacity={0.7} onPress={() => handleNotificationPress(item)}>
             <Surface style={[styles.card, SHADOWS.light, item.isRead && styles.readCard]}>
                 <View style={styles.cardHeader}>
                     <View style={styles.headerLeft}>
@@ -308,6 +331,7 @@ export default function NotificationScreen() {
                     </Button>
                 </View>
             </Surface>
+            </TouchableOpacity>
         );
     };
 
@@ -322,6 +346,7 @@ export default function NotificationScreen() {
         
         // General Notification Fallback
         return (
+            <TouchableOpacity activeOpacity={0.7} onPress={() => handleNotificationPress(item)}>
             <Surface style={[styles.card, SHADOWS.light, item.isRead && styles.readCard]}>
                 <View style={styles.cardHeader}>
                     <View style={styles.headerLeft}>
@@ -340,6 +365,7 @@ export default function NotificationScreen() {
                     </View>
                 )}
             </Surface>
+            </TouchableOpacity>
         );
     };
 

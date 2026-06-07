@@ -11,6 +11,9 @@ export const socket = io(SOCKET_URL, {
   transports: ['websocket'],
   reconnectionAttempts: 5,
   reconnectionDelay: 1000,
+  query: {
+    supportsAck: 'true'
+  }
 });
 
 let isReconnecting = false;

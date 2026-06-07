@@ -11,6 +11,7 @@ import { DeviceEventEmitter } from 'react-native';
 import { useAppSelector } from '../store/hooks';
 import { socket } from '../utils/socket';
 import { buddyApi } from '../api/client';
+import { useQueryClient } from '@tanstack/react-query';
 import { navigate } from '../utils/navigationRef';
 import JobAlertContainer from '../components/JobAlertContainer';
 import { JobAlertData } from '../components/JobAlertCard';
@@ -42,6 +43,10 @@ export const JobRequestProvider = ({ children }: { children: ReactNode }) => {
     const seenJobIds = useRef<Set<string>>(new Set());
     // Track auto-dismiss timers
     const dismissTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+    // Track processed event IDs for deduplication
+    const processedEventsRef = useRef<Set<string>>(new Set());
+    
+    const queryClient = useQueryClient();
 
     // Add a new job request (with deduplication)
     const addJobRequest = useCallback((job: JobAlertData) => {
@@ -158,57 +163,109 @@ export const JobRequestProvider = ({ children }: { children: ReactNode }) => {
 
         console.log('[JobRequestContext] Setting up socket listeners');
 
+        const handleJobEvent = (data: any, ack: any, handler: (d: any) => void) => {
+            // Send acknowledgement immediately if requested
+            if (typeof ack === 'function') {
+                ack({ success: true, timestamp: Date.now() });
+            }
+
+            // Deduplicate incoming events using a recent eventId store
+            if (data.eventId) {
+                if (processedEventsRef.current.has(data.eventId)) {
+                    console.log(`[JobRequestContext] Ignored duplicate event: ${data.eventId}`);
+                    return;
+                }
+                processedEventsRef.current.add(data.eventId);
+                // Keep set small
+                if (processedEventsRef.current.size > 100) {
+                    const firstItem = Array.from(processedEventsRef.current)[0];
+                    processedEventsRef.current.delete(firstItem);
+                }
+            }
+
+            // Invalidate React Query jobs cache
+            if (queryClient) {
+                queryClient.invalidateQueries({ queryKey: ['jobs'] });
+            }
+
+            handler(data);
+        };
+
         // Listen for new job assignments (socket only - when app is open)
-        // Event name unified with FCM payload data.type
-        const handleJobAssigned = (data: any) => {
-            console.log('[JobRequestContext] Socket: buddy-assignment received', data);
+        const handleJobAssigned = (data: any, ack?: any) => {
+            handleJobEvent(data, ack, (d) => {
+                console.log('[JobRequestContext] Socket: buddy-assignment/job:assigned received', d);
 
-            const jobData: JobAlertData = {
-                assignmentId: data.assignmentId,
-                bookingId: data.bookingId,
-                serviceTitle: data.serviceTitle || 'Service',
-                address: data.address || 'Address',
-                price: data.price || 0,
-                scheduledDate: data.scheduledStart, // Use scheduledStart from backend
-                scheduledEnd: data.scheduledEnd,
-                metadata: data.metadata,
-                isImmediate: data.isImmediate === true || data.isImmediate === 'true',
-            };
+                const jobData: JobAlertData = {
+                    assignmentId: d.assignmentId,
+                    bookingId: d.bookingId,
+                    serviceTitle: d.serviceTitle || 'Service',
+                    address: d.address || 'Address',
+                    price: d.price || 0,
+                    scheduledDate: d.scheduledStart, // Use scheduledStart from backend
+                    scheduledEnd: d.scheduledEnd,
+                    metadata: d.metadata,
+                    isImmediate: d.isImmediate === true || d.isImmediate === 'true',
+                };
 
-            addJobRequest(jobData);
+                if (!d.assignedByAdmin) {
+                    addJobRequest(jobData);
+                } else {
+                    console.log('[JobRequestContext] Job assigned by admin, skipping popup modal.');
+                }
+            });
         };
 
         // Listen for job taken by another buddy
-        const handleJobTaken = (data: any) => {
-            console.log('[JobRequestContext] Socket: job:taken received', data);
-            markJobTaken(data.bookingId);
+        const handleJobTaken = (data: any, ack?: any) => {
+            handleJobEvent(data, ack, (d) => {
+                console.log('[JobRequestContext] Socket: job:taken received', d);
+                markJobTaken(d.bookingId);
+            });
         };
 
         // Listen for job cancelled
-        // Event name unified with FCM payload data.type
-        const handleJobCancelled = (data: any) => {
-            console.log('[JobRequestContext] Socket: booking-cancelled received', data);
-            // Use Ref to get latest jobs without re-running effect
-            const job = jobsRef.current.find((j) => j.bookingId === data.bookingId);
-            if (job) {
-                removeJob(job.assignmentId);
-            }
+        const handleJobCancelled = (data: any, ack?: any) => {
+            handleJobEvent(data, ack, (d) => {
+                console.log('[JobRequestContext] Socket: booking-cancelled received', d);
+                // Use Ref to get latest jobs without re-running effect
+                const job = jobsRef.current.find((j) => j.bookingId === d.bookingId);
+                if (job) {
+                    removeJob(job.assignmentId);
+                }
+            });
+        };
+        
+        // Listen for admin withdrawal
+        const handleJobWithdrawn = (data: any, ack?: any) => {
+            handleJobEvent(data, ack, (d) => {
+                console.log('[JobRequestContext] Socket: job:withdrawn received', d);
+                // Similar to job cancelled, remove the assignment
+                const job = jobsRef.current.find((j) => j.bookingId === d.bookingId);
+                if (job) {
+                    removeJob(job.assignmentId);
+                }
+            });
         };
 
         socket.on('buddy-assignment', handleJobAssigned);
+        socket.on('job:assigned', handleJobAssigned); // New event name
         socket.on('job:taken', handleJobTaken);
         socket.on('booking-cancelled', handleJobCancelled);
+        socket.on('job:withdrawn', handleJobWithdrawn); // New event name
 
         // Listen for requests triggered by FCM foreground messages or pending offline messages
         const sub = DeviceEventEmitter.addListener('incoming-job-request', handleJobAssigned);
 
         return () => {
             socket.off('buddy-assignment', handleJobAssigned);
+            socket.off('job:assigned', handleJobAssigned);
             socket.off('job:taken', handleJobTaken);
             socket.off('booking-cancelled', handleJobCancelled);
+            socket.off('job:withdrawn', handleJobWithdrawn);
             sub.remove();
         };
-    }, [isAuthenticated, addJobRequest, markJobTaken, removeJob]); // Removed 'jobs' dependency
+    }, [isAuthenticated, addJobRequest, markJobTaken, removeJob, queryClient]); // Removed 'jobs' dependency
 
     // Cleanup timers on unmount
     useEffect(() => {
