@@ -13,6 +13,7 @@ export interface JobAlertData {
     scheduledEnd?: string;
     metadata?: any; // { items: [{ title, quantity, serviceId }] }
     isImmediate?: boolean;
+    offerExpiresAt?: string; // ISO date — when this offer expires (server-enforced)
 }
 
 interface JobAlertCardProps {

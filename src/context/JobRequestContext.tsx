@@ -7,7 +7,7 @@ import React, {
     useRef,
     ReactNode,
 } from 'react';
-import { DeviceEventEmitter } from 'react-native';
+import { Alert, DeviceEventEmitter } from 'react-native';
 import { useAppSelector } from '../store/hooks';
 import { socket } from '../utils/socket';
 import { buddyApi } from '../api/client';
@@ -16,7 +16,7 @@ import { navigate } from '../utils/navigationRef';
 import JobAlertContainer from '../components/JobAlertContainer';
 import { JobAlertData } from '../components/JobAlertCard';
 
-const AUTO_DISMISS_MS = 90000; // 90 seconds
+const AUTO_DISMISS_MS = 50000; // 50 seconds (must be < 60s instant retry interval to prevent popup overlap)
 
 interface JobRequestContextType {
     alertCount: number;
@@ -118,8 +118,16 @@ export const JobRequestProvider = ({ children }: { children: ReactNode }) => {
     const handleAccept = useCallback(async (assignmentId: string) => {
         setLoadingJobId(assignmentId);
 
-        // Find the job to get its scheduledDate
+        // Find the job to get its scheduledDate and offer expiry
         const job = jobs.find((j) => j.assignmentId === assignmentId);
+
+        // Client-side expiry check (server also enforces this)
+        if (job?.offerExpiresAt && new Date(job.offerExpiresAt) < new Date()) {
+            removeJob(assignmentId);
+            setLoadingJobId(null);
+            Alert.alert('Offer Expired', 'This job offer has expired. You will receive new offers soon!');
+            return;
+        }
 
         try {
             await buddyApi.acceptJob(assignmentId);
@@ -137,6 +145,10 @@ export const JobRequestProvider = ({ children }: { children: ReactNode }) => {
                 if (job) {
                     markJobTaken(job.bookingId);
                 }
+            } else if (error.response?.status === 410) {
+                // Offer expired (server-side enforcement)
+                removeJob(assignmentId);
+                Alert.alert('Offer Expired', 'This job offer has expired. You will receive new offers soon!');
             }
         } finally {
             setLoadingJobId(null);
@@ -206,6 +218,7 @@ export const JobRequestProvider = ({ children }: { children: ReactNode }) => {
                     scheduledEnd: d.scheduledEnd,
                     metadata: d.metadata,
                     isImmediate: d.isImmediate === true || d.isImmediate === 'true',
+                    offerExpiresAt: d.offerExpiresAt, // Server-provided offer expiry
                 };
 
                 if (!d.assignedByAdmin) {
