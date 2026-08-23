@@ -17,6 +17,7 @@ export const socket = io(SOCKET_URL, {
 });
 
 let isReconnecting = false;
+let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 
 // Helper to get fresh token from SecureStore
 const getFreshToken = async (): Promise<string | null> => {
@@ -36,6 +37,14 @@ export const initSocket = (token: string) => {
   socket.on('connect', () => {
     console.log('[Socket] ✅ Connected to socket server, socket.id:', socket.id);
     isReconnecting = false;
+    
+    // Start heartbeat
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+    heartbeatInterval = setInterval(() => {
+      if (socket.connected) {
+        socket.emit('buddy:heartbeat');
+      }
+    }, 60000);
   });
 
   socket.on('connected', (data: any) => {
@@ -44,6 +53,10 @@ export const initSocket = (token: string) => {
 
   socket.on('disconnect', (reason: string) => {
     console.log('[Socket] ❌ Disconnected from socket server, reason:', reason);
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
   });
 
   socket.on('connect_error', async (error: Error) => {
@@ -126,6 +139,10 @@ export const updateSocketToken = (newToken: string) => {
 };
 
 export const disconnectSocket = () => {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
   if (socket.connected) {
     socket.disconnect();
   }

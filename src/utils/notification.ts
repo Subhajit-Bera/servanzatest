@@ -328,6 +328,33 @@ export const backgroundMessageHandler = async (remoteMessage: FirebaseMessagingT
           content: data.content,
         },
       );
+    } else if (type === 'incoming-call') {
+      let callerName = 'Someone';
+      try {
+        if (data.caller) {
+          const callerData = typeof data.caller === 'string' ? JSON.parse(data.caller) : data.caller;
+          callerName = callerData.name || callerName;
+        }
+      } catch (e) {}
+
+      // Schedule local notification to alert the user of incoming call
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Incoming Voice Call',
+          body: `${callerName} is calling you`,
+          data: data,
+          sound: true,
+          // 'servanza_calls' channel isn't guaranteed to be created here, but default will work
+        },
+        trigger: null,
+      });
+
+      await persistNotificationToStorage(
+        'incoming-call',
+        'Incoming Voice Call',
+        `${callerName} is calling you`,
+        data,
+      );
     } else {
       // Generic notification — still persist so badge count matches content
       await persistNotificationToStorage(
